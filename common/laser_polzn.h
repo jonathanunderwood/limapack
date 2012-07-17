@@ -3,41 +3,48 @@
 
 #include <gsl/gsl_complex.h>
 
-typedef struct laser_polzn_vec_t {
-  gsl_complex (*get) (const struct laser_polzn_vec_t *e, const int p);
-  void (*set) (struct laser_polzn_vec_t *e, const int p, gsl_complex val);
-  void (*rotate) (struct laser_polzn_vec_t *e,
+typedef struct laser_polzn_vec_t
+{
+  gsl_complex (*get) (const struct laser_polzn_vec_t * e, const int p);
+  void (*set) (struct laser_polzn_vec_t * e, const int p, gsl_complex val);
+  void (*rotate) (struct laser_polzn_vec_t * e,
 		  const double phi, const double theta, const double chi);
   gsl_complex e[3];
 } laser_polzn_vec;
 
-void laser_polzn_vec_init_from_cart (laser_polzn_vec *e, const gsl_complex ex,
-				     const gsl_complex ey, const gsl_complex ez);
+void laser_polzn_vec_init_from_cart (laser_polzn_vec * e,
+				     const gsl_complex ex,
+				     const gsl_complex ey,
+				     const gsl_complex ez);
 
-gsl_complex laser_polzn_vec_get (const laser_polzn_vec *e, const int p);
+gsl_complex laser_polzn_vec_get (const laser_polzn_vec * e, const int p);
 
-void laser_polzn_vec_set (laser_polzn_vec *e, const int p, const gsl_complex val);
+void laser_polzn_vec_set (laser_polzn_vec * e, const int p,
+			  const gsl_complex val);
 
-void laser_polzn_vec_free (laser_polzn_vec *e);
+void laser_polzn_vec_free (laser_polzn_vec * e);
 
-void laser_polzn_vec_rotate (laser_polzn_vec *e, const double phi,
+void laser_polzn_vec_rotate (laser_polzn_vec * e, const double phi,
 			     const double theta, const double chi);
 
 typedef struct laser_polzn_tensor_t
 {
-  gsl_complex (*get) (const struct laser_polzn_tensor_t *E, const int k, const int p);
-  void (*set) (struct laser_polzn_tensor_t *E, const int k, const int p, gsl_complex val);
+  gsl_complex (*get) (const struct laser_polzn_tensor_t * E, const int k,
+		      const int p);
+  void (*set) (struct laser_polzn_tensor_t * E, const int k, const int p,
+	       gsl_complex val);
   gsl_complex E[9];
 } laser_polzn_tensor;
 
-gsl_complex laser_polzn_tensor_get (const laser_polzn_tensor *E,
+gsl_complex laser_polzn_tensor_get (const laser_polzn_tensor * E,
 				    const int k, const int p);
 
-void laser_polzn_tensor_set (laser_polzn_tensor *E, const int k, const int p,
+void laser_polzn_tensor_set (laser_polzn_tensor * E, const int k, const int p,
 			     const gsl_complex val);
 
-void laser_polzn_tensor_init_from_vecs (laser_polzn_tensor *E, const laser_polzn_vec *e1,
-					const laser_polzn_vec *e2);
+void laser_polzn_tensor_init_from_vecs (laser_polzn_tensor * E,
+					const laser_polzn_vec * e1,
+					const laser_polzn_vec * e2);
 
 void laser_polzn_tensor_free (laser_polzn_tensor * E);
 
