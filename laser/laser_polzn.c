@@ -7,26 +7,30 @@
 
 #include "laser_polzn.h"
 
-void
-laser_polzn_vec_init (laser_polzn_vec_t * e)
+laser_polzn_vector_t *
+laser_polzn_vector_ctor ()
 {
-  e->get = &laser_polzn_vec_get;
-  e->set = &laser_polzn_vec_set;
-  e->rotate = &laser_polzn_vec_rotate;
+  laser_polzn_vector_t * e;
+  if (MEMORY_ALLOC(e) < 0)
+    return NULL;
+
+  e->get = &laser_polzn_vector_get;
+  e->set = &laser_polzn_vector_set;
+  e->rotate = &laser_polzn_vector_rotate;
+
+  return e;
 }
 
 
 void
-laser_polzn_vec_free (laser_polzn_vec_t * e)
+laser_polzn_vector_dtor (laser_polzn_vector_t * e)
 {
-  e->get = NULL;
-  e->set = NULL;
-  e->rotate = NULL;
+  MEMORY_FREE(e);
 }
 
 
 gsl_complex
-laser_polzn_vec_get (const laser_polzn_vec_t * e, const int p)
+laser_polzn_vector_get (const laser_polzn_vector_t * e, const int p)
 {
   /* p takes the values (-1, 0, 1) stored in the array e[0, 1, 2]
      respectively */
@@ -35,7 +39,7 @@ laser_polzn_vec_get (const laser_polzn_vec_t * e, const int p)
 
 
 void
-laser_polzn_vec_set (laser_polzn_vec_t * e, const int p, const gsl_complex val)
+laser_polzn_vector_set (laser_polzn_vector_t * e, const int p, const gsl_complex val)
 {
   /* p takes the values (-1, 0, 1) stored in the array e[0, 1, 2]
      respectively */
@@ -43,9 +47,9 @@ laser_polzn_vec_set (laser_polzn_vec_t * e, const int p, const gsl_complex val)
 }
 
 
-void
-laser_polzn_vec_init_from_cart (laser_polzn_vec_t * e, const gsl_complex ex,
-				const gsl_complex ey, const gsl_complex ez)
+laser_polzn_vector_t *
+laser_polzn_vector_ctor_from_cart (const gsl_complex ex, const gsl_complex ey, 
+				   const gsl_complex ez)
 /* Takes the cartesian components of a complex vector and returns a complex
    vector containing the spherical tensor components. */
 {
@@ -53,8 +57,10 @@ laser_polzn_vec_init_from_cart (laser_polzn_vec_t * e, const gsl_complex ex,
   gsl_complex i = gsl_complex_rect (0.0, 1.0);
   gsl_complex iey = gsl_complex_mul (ey, i);
   gsl_complex val;
+  laser_polzn_vector_t * e = laser_polzn_vector_ctor (e);
 
-  laser_polzn_vec_init (e);
+  if (e == NULL)
+    return NULL;
 
   /* e_-1 =  1/sqrt(2) * (e_x - i*e_y) */
   val = gsl_complex_sub (ex, iey);
@@ -115,18 +121,18 @@ laser_polzn_drot1 (const int p, const int q, const double phi,
 
 
 void
-laser_polzn_vec_rotate (laser_polzn_vec_t * e, const double phi,
-			const double theta, const double chi)
+laser_polzn_vector_rotate (laser_polzn_vector_t * e, const double phi,
+			   const double theta, const double chi)
 /* Rotates the spherical components of the polarization vector by the euler
    angles phi, theta, chi. Spherical components of the unrotated vector of are
    passed in e, and the rotated components are returned in e. */
 {
-  laser_polzn_vec_t ein = *e;
   gsl_complex zero = gsl_complex_rect (0.0, 0.0);
   int p;
+  laser_polzn_vector_t *ein = laser_polzn_vector_ctor();
 
   /* Make a copy of the initial vector */
-  ein = *e;
+  *ein = *e;
 
   for (p = -1; p <= 1; p++)
     {
@@ -163,26 +169,39 @@ laser_polzn_tensor_set (laser_polzn_tensor_t * E, const int k, const int p,
 
 #undef TIDX
 
-
-void
-laser_polzn_tensor_init (laser_polzn_tensor_t * E)
+laser_polzn_tensor_t *
+laser_polzn_tensor_ctor ()
 {
+  laser_polzn_tensor_t *E;
+
+  if (MEMORY_ALLOC(E))
+    return NULL;
+  
   E->get = &laser_polzn_tensor_get;
   E->set = &laser_polzn_tensor_set;
+
+  return E;
 }
 
-
 void
-laser_polzn_tensor_init_from_vecs (laser_polzn_tensor_t * E,
-				   const laser_polzn_vec_t * e1,
-				   const laser_polzn_vec_t * e2)
+laser_polzn_tensor_dtor (laser_polzn_tensor_t * E)
+{
+  MEMORY_FREE(E);
+}
+
+laser_polzn_tensor_t *
+laser_polzn_tensor_ctor_from_vectors (const laser_polzn_vector_t * e1,
+				      const laser_polzn_vector_t * e2)
 /* Calculates the polarization tensor E = [e1* x e2]^k_q. Pass e1 to this
    function and not e1*. */
 {
   int k;
   gsl_complex zero = gsl_complex_rect (0.0, 0.0);
 
-  laser_polzn_tensor_init (E);
+  laser_polzn_tensor_t *E =  laser_polzn_tensor_init (E);
+ 
+  if (E == NULL)
+    return NULL;
 
   for (k = 0; k <= 2; k++)
     {
