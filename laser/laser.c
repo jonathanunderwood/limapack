@@ -1,4 +1,4 @@
-#include laser.h
+#include "laser.h"
 
 void
 laser_ctor (laser_t *self,
