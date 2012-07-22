@@ -22,12 +22,12 @@ laser_polzn_vector_ctor_from_cart (const gsl_complex ex,
 gsl_complex laser_polzn_vector_get (const laser_polzn_vector_t * e, const int p);
 
 void laser_polzn_vector_set (laser_polzn_vector_t * e, const int p,
-			  const gsl_complex val);
+			     const gsl_complex val);
 
 void laser_polzn_vector_dtor (laser_polzn_vector_t * e);
 
 void laser_polzn_vector_rotate (laser_polzn_vector_t * e, const double phi,
-			     const double theta, const double chi);
+				const double theta, const double chi);
 
 
 /* Polarization tensor struct and functions. */

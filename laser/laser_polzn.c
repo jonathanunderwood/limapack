@@ -5,6 +5,7 @@
 #include <gsl/gsl_complex_math.h>
 #include <gsl/gsl_sf_coupling.h>
 
+#include "memory.h"
 #include "laser_polzn.h"
 
 laser_polzn_vector_t *
