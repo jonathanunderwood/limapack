@@ -103,3 +103,18 @@ void memory_free(void *ptrptr)
     free(*(void**)ptrptr);
     *(void**)ptrptr = NULL;
 }
+
+/**
+ * memory_oomerr:
+ * @file: pointer to a string containing the current source filename. 
+ *        Usually, the macro __FILE__ will be used
+ * @line: line number of file
+ *
+ * Prints an OOM error message to stderr.
+ */
+void
+memory_oomerr (const char *file, const int line)
+{
+  fprintf(stderr, "Failed to allocate memory at line %d in file %s.\n",
+	  line, file);
+}

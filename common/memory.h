@@ -15,6 +15,7 @@ int memory_alloc(void *ptrptr, size_t size) ATTRIBUTE_RETURN_CHECK;
 int memory_allocN(void *ptrptr, size_t size, size_t count) ATTRIBUTE_RETURN_CHECK;
 int memory_reallocN(void *ptrptr, size_t size, size_t count) ATTRIBUTE_RETURN_CHECK;
 void memory_free(void *ptrptr);
+void memory_oomerr (const char *file, const int line);
 
 /**
  * MEMORY_ALLOC:
@@ -62,5 +63,13 @@ void memory_free(void *ptrptr);
  * to NULL.
  */
 #define MEMORY_FREE(ptr) memory_free(&(ptr))
+
+/**
+ * memory_oomerr:
+ *
+ * Prints an OOM error message to stderr indicating at which line in 
+ * which file the error occured,
+ */
+#define MEMORY_OOMERR() memory_oomerr(__FILE__, __LINE__)
 
 #endif /* __MEMORY_H__ */
