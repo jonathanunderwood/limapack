@@ -12,7 +12,10 @@ laser_polzn_vector_ctor ()
 {
   laser_polzn_vector_t * e;
   if (MEMORY_ALLOC(e) < 0)
-    return NULL;
+    {
+      MEMORY_OOMERR;
+      return NULL;
+    }
 
   e->get = &laser_polzn_vector_get;
   e->set = &laser_polzn_vector_set;
@@ -174,9 +177,12 @@ laser_polzn_tensor_ctor ()
 {
   laser_polzn_tensor_t *E;
 
-  if (MEMORY_ALLOC(E))
-    return NULL;
-  
+  if (MEMORY_ALLOC(E) < 0)
+    {
+      MEMORY_OOMERR;
+      return NULL;
+    }
+
   E->get = &laser_polzn_tensor_get;
   E->set = &laser_polzn_tensor_set;
 
