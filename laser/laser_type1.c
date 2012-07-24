@@ -21,11 +21,11 @@ laser_type1_ctor()
 			   &laser_type1_get_envelope, 
 			   &laser_type1_get_frequency);
 
-  l->get_polzn_vector = &laser_type1_get_polzn_vector;
-  l->get_envelope = &laser_type1_get_envelope;
-  l->get_frequency = &laser_type1_get_frequency;
+  /* l->get_polzn_vector = &laser_type1_get_polzn_vector; */
+  /* l->get_envelope = &laser_type1_get_envelope; */
+  /* l->get_frequency = &laser_type1_get_frequency; */
 
-  l->parent.type = 1;
+  /* l->parent.type = 1; */
 
   return l;
 
@@ -40,7 +40,7 @@ laser_type1_get_polzn_vector(const laser_t * laser, const double t)
   return l->e;
 } 
 
-gsl_complex
+double
 laser_type1_get_envelope (const laser_t * self, const double t)
 /* Returns the envelope function at time t. For a type 1 laser this is
    a pulse with a Gaussian profile, and is real valued. */

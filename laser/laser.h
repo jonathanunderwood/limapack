@@ -3,19 +3,20 @@
 
 #include "laser_polzn.h"
 
+typedef enum _laser_type {
+  TYPE1 = 1,
+} laser_type_t;
+
 /* Laser definitions employ a crude form of single inheritance implemented using
    structs. The following is the parent class struct for all laser types. This
    struct essentially defines all call-back functions that laser types should
    define and initialize. */
-typedef enum _laser_type {
-  TYPE1
-} laser_type_t;
 
 typedef struct _laser {
   laser_polzn_vector * (*get_polzn_vector) (struct _laser *self, const double t);
-  laser_polzn_tensor * (*get_polzn_tensor) (struct _laser *self, const double t);
-  gsl_comlplex * (*get_envelope) (struct _laser *self, const double t);
-  laser_type_t type;
+  double (*get_envelope) (struct _laser *self, const double t);
+  double (*get_frequency) (struct _laser *self, const double t);
+  //  laser_type_t type;
 } laser_t;
 
 /* Constructor */
