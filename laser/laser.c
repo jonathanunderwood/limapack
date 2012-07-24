@@ -1,3 +1,4 @@
+#include "memory.h"
 #include "laser.h"
 
 laser_t *
@@ -32,9 +33,10 @@ laser_callback_register (laser_t * laser,
 }
 
 void 
-laser_xtor (laser_t *self)
+laser_dtor (laser_t *self)
 {
   self->get_polzn_vector = NULL;
   self->get_polzn_tensor = NULL;
   self->get_envelope = NULL;
+  MEMORY_FREE(self);
 }

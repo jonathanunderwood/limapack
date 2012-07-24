@@ -3,10 +3,6 @@
 
 #include "laser_polzn.h"
 
-typedef enum _laser_type {
-  TYPE1 = 1,
-} laser_type_t;
-
 /* Laser definitions employ a crude form of single inheritance implemented using
    structs. The following is the parent class struct for all laser types. This
    struct essentially defines all call-back functions that laser types should
