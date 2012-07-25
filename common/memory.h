@@ -70,6 +70,6 @@ void memory_oomerr (const char *file, const int line);
  * Prints an OOM error message to stderr indicating at which line in 
  * which file the error occured,
  */
-#define MEMORY_OOMERR() memory_oomerr(__FILE__, __LINE__)
+#define MEMORY_OOMERR memory_oomerr(__FILE__, __LINE__)
 
 #endif /* __MEMORY_H__ */

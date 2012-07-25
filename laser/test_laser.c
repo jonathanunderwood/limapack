@@ -11,6 +11,7 @@ main ()
   config_t cfg;
   config_setting_t *setting;
   laser_container_t lasers;
+  int ret;
 
   config_init (&cfg);
 
@@ -22,7 +23,7 @@ main ()
     exit(EXIT_FAILURE);
   }
 
-  ret = laser_cfg_parse(cfg, &lasers);
+  ret = laser_cfg_parse(&cfg, &lasers);
 
   return ret;
 }

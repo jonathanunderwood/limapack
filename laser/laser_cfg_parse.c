@@ -2,7 +2,9 @@
 #include <stdio.h>
 #include <libconfig.h>
 
+#include "laser_cfg_parse.h"
 #include "laser_type1.h"
+#include "memory.h"
 
 laser_container_t * laser_container_ctor (const int nlasers)
 {
@@ -46,9 +48,9 @@ void laser_container_dtor (laser_container_t * lasers)
 int
 laser_cfg_parse (const config_t * cfg, laser_container_t *lasers)
 {
-  config_setting_t *s;
+  config_setting_t *setting;
 
-  s = config_lookup(&cfg, "lasers");
+  setting = config_lookup(cfg, "lasers");
 
   if (setting == NULL)
     {
@@ -71,13 +73,11 @@ laser_cfg_parse (const config_t * cfg, laser_container_t *lasers)
 	{
 	  config_setting_t *this_laser = config_setting_get_elem(setting, i);
 	  laser_type_t type = NONE;
-	  int ret = config_setting_lookup_int(this_laser, "type", &type) ;
+	  int ret = config_setting_lookup_int(this_laser, "type", (int *)(&type)) ;
 	  
 	  if (ret == CONFIG_FALSE)
 	    {
-	      fprintf(stderr, "Failed to get laser type at line %d:\n",
-		      config_error_line (this_laser));
-	      fprintf(stderr, "%s\n", config_error_text (this_laser));
+	      fprintf(stderr, "Failed to get laser type.\n");
 	      laser_container_dtor(lasers);
 	      return -1;
 	    }
@@ -85,7 +85,8 @@ laser_cfg_parse (const config_t * cfg, laser_container_t *lasers)
 	  switch (type) 
 	    {
 	    case TYPE1:
-	      if (MEMORY_ALLOC((laser_type1 *) (lasers->laser[i]) < 0))
+	      
+	      if (MEMORY_ALLOC((laser_type1_t *) (lasers->laser[i])) < 0)
 		{
 		  MEMORY_OOMERR;
 		  laser_container_dtor(lasers);

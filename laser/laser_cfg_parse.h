@@ -1,5 +1,5 @@
 #ifndef __LASER_CFG_PARSE_H__
-#ifndef __LASER_CFG_PARSE_H__
+#define __LASER_CFG_PARSE_H__
 
 typedef enum _laser_type {
   NONE = 0, /* Use this for error detection. */
@@ -7,7 +7,7 @@ typedef enum _laser_type {
 } laser_type_t;
 
 /* Structure to keep track of multiple lasers of different types. */
-typedef _lasers_container 
+typedef struct _lasers_container 
 {
   void **laser;
   int nlasers;
@@ -18,4 +18,4 @@ void laser_container_dtor (laser_container_t * self);
 
 int laser_cfg_parse (const config_t * cfg, laser_container_t *lasers);
 
-#endif __LASER_CFG_PARSE_H__
+#endif /* __LASER_CFG_PARSE_H__ */
