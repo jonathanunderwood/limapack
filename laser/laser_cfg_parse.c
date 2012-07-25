@@ -84,9 +84,10 @@ laser_cfg_parse (const config_t * cfg, laser_container_t *lasers)
 
 	  switch (type) 
 	    {
+	      void *lptr = lasers->laser[i];
 	    case TYPE1:
-	      
-	      if (MEMORY_ALLOC((laser_type1_t *) (lasers->laser[i])) < 0)
+	      lptr = (laser_type1_t *) lptr;
+	      if (MEMORY_ALLOC(lptr) < 0)
 		{
 		  MEMORY_OOMERR;
 		  laser_container_dtor(lasers);
