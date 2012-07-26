@@ -1,9 +1,59 @@
 #include <stdlib.h>
+#include <math.h>
 
 #include "laser_type1.h"
 #include "laser.h"
 #include "memory.h"
-#include "config_setting_gsl_complex.h"
+#include "config_gsl_complex.h"
+
+static laser_polzn_vector_t *
+laser_type1_get_polzn_vector(const laser_t * self, const double t)
+/* Returns the laser polarization vector. For type 1 lasers, this is
+   independent of t. */
+{
+  laser_type1_t *l = (laser_type1_t *) self;
+  return l->e;
+} 
+
+static double
+laser_type1_get_envelope (const laser_t * self, const double t)
+/* Returns the envelope function at time t. For a type 1 laser this is
+   a pulse with a Gaussian profile, and is real valued. */
+{
+  laser_type1_t *l = (laser_type1_t *) self;
+  double t0 = l->t0;
+  double E0 = l->E0;
+
+  if (t < t0)
+    {
+      double a = (t - t0);
+      double trise = l->trise;
+      return E0 * exp (-(a * a) / (2.0 * trise * trise));
+    }
+
+  else if (t > t0)
+    {
+      double a = (t - t0);
+      double tfall = l->tfall;
+      return E0 * exp (-(a * a) / (2.0 * tfall * tfall));
+    }
+
+  else
+    return E0;
+
+}
+
+static double
+laser_type1_get_frequency (const laser_t * self, const double t)
+/* Returns the laser frequency at time t. For type 1 lasers this is
+   independent of t. */
+{
+  laser_type1_t *l = (laser_type1_t *) self;
+
+  return l->freq;
+}
+
+
 
 laser_type1_t *
 laser_type1_ctor()
@@ -31,52 +81,6 @@ laser_type1_ctor()
 
 }
 
-laser_polzn_vector 
-laser_type1_get_polzn_vector(const laser_t * laser, const double t)
-/* Returns the laser polarization vector. For type 1 lasers, this is
-   independent of t. */
-{
-  laser_type1_t *l = (laser_type1_t *) laser;
-  return l->e;
-} 
-
-double
-laser_type1_get_envelope (const laser_t * self, const double t)
-/* Returns the envelope function at time t. For a type 1 laser this is
-   a pulse with a Gaussian profile, and is real valued. */
-{
-  laser_type1_t *l = (laser_type1_t *) laser;
-  double t0 = l->t0;
-  double E0 = l->E0;
-
-  if (t < t0)
-    {
-      double a = (t - t0);
-      double trise = l->trise;
-      return E0 * exp (-(a * a) / (2.0 * trise * trise));
-    }
-
-  else if (t > t0)
-    {
-      double a = (t - t0);
-      double tfall = l->tfall;
-      return E0 * exp (-(a * a) / (2.0 * tfall * tfall));
-    }
-
-  else
-    return E0;
-
-}
-
-double
-laser_type1_get_frequency (const laser_t * self, const double t)
-/* Returns the laser frequency at time t. For type 1 lasers this is
-   independent of t. */
-{
-  laser_type1_t *l = (laser_type1_t *) laser;
-
-  return laser->freq;
-}
 
 int
 laser_type1_parse (config_setting_t * element, laser_type1_t *laser)
@@ -93,7 +97,7 @@ laser_type1_parse (config_setting_t * element, laser_type1_t *laser)
 	config_setting_lookup_float (element, "chi", &(laser->chi)) &&
 	config_setting_lookup_gsl_complex (element, "ex", &(laser->ex)) &&
 	config_setting_lookup_gsl_complex (element, "ey", &(laser->ey)) &&
-	config_setting_lookup_gsl_complex (element, "ez", &(laser->ez)) &&
+	config_setting_lookup_gsl_complex (element, "ez", &(laser->ez))
 	))
     {
       fprintf(stderr, "Incomplete laser type 1 description in file.\n"); 
@@ -112,7 +116,7 @@ laser_type1_parse (config_setting_t * element, laser_type1_t *laser)
   laser->tfall = PS_TO_AU (tfall);
 
   /* Construct laser polarization vector in the lab frame. */
-  laser->e = laser_polzn_vector_ctor_from_cart (ex, ey, ez);
+  laser->e = laser_polzn_vector_ctor_from_cart (laser->ex, laser->ey, laser->ez);
   laser->e->rotate(laser->e, laser->phi, laser->theta, laser->chi);
 
   return 0;

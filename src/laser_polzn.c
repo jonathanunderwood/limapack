@@ -147,7 +147,7 @@ laser_polzn_vector_rotate (laser_polzn_vector_t * e, const double phi,
       for (q = -1; q <= 1; q++)
 	{
 	  gsl_complex dmtx = laser_polzn_drot1 (p, q, phi, theta, chi);
-	  gsl_complex term = gsl_complex_mul (dmtx, ein.get (&ein, q));
+	  gsl_complex term = gsl_complex_mul (dmtx, ein->get (ein, q));
 	  gsl_complex newval = gsl_complex_add (e->get (e, p), term);
 	  e->set (e, p, newval);
 	}
@@ -205,7 +205,7 @@ laser_polzn_tensor_ctor_from_vectors (const laser_polzn_vector_t * e1,
   int k;
   gsl_complex zero = gsl_complex_rect (0.0, 0.0);
 
-  laser_polzn_tensor_t *E =  laser_polzn_tensor_init (E);
+  laser_polzn_tensor_t *E =  laser_polzn_tensor_ctor ();
  
   if (E == NULL)
     return NULL;
