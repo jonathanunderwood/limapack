@@ -7,7 +7,6 @@ add_library(limapack STATIC
   laser_type1.c
   jkmarray.c
   jmarray.c
-  config_gsl_complex.c
 )
 target_link_libraries(limapack libconfig gsl m)
 
