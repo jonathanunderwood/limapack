@@ -5,42 +5,48 @@
 #define IDX(J, M) (J * J + J + M)
 #define DIM(J) (J * J + 2 * J + 1)
 
-int
-JMarray_init (JMarray * a, const int Jmax)
+JMarray_t *
+JMarray_ctor (const int Jmax)
 {
   unsigned int dim = DIM (Jmax);
-  int ret = MEMORY_ALLOC_N (a->data, dim);
+  JMarray_t * a;
 
-  if (ret == 0)
+  if (MEMORY_ALLOC(a) < 0)
     {
-      a->get = &JMarray_get;
-      a->set = &JMarray_set;
-      a->Jmax = Jmax;
-      a->dim = dim;
-      return 0;
+      MEMORY_OOMERR;
+      return NULL;
     }
-  else
-    return 1;
+
+  if (MEMORY_ALLOC_N (a->data, dim) < 0)
+    {
+      MEMORY_OOMERR;
+      MEMORY_FREE(a);
+      return NULL;
+    }
+
+  a->get = &JMarray_get;
+  a->set = &JMarray_set;
+  a->Jmax = Jmax;
+  a->dim = dim;
+
+  return a;
 }
 
 void
-JMarray_free (JMarray * a)
+JMarray_dtor (JMarray_t * a)
 {
   MEMORY_FREE (a->data);
-  a->Jmax = 0;
-  a->dim = 0;
-  a->get = NULL;
-  a->set = NULL;
+  MEMORY_FREE (a);
 }
 
 double
-JMarray_get (JMarray * a, const int J, const int M)
+JMarray_get (JMarray_t * a, const int J, const int M)
 {
   return a->data[IDX (J, M)];
 }
 
 void
-JMarray_set (JMarray * a, const int J, const int M, const double val)
+JMarray_set (JMarray_t * a, const int J, const int M, const double val)
 {
   a->data[IDX (J, M)] = val;
 }

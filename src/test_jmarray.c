@@ -7,16 +7,15 @@
 int
 main ()
 {
-  JMarray arr;
-  int ret;
-  int j, k, m;
+  JMarray_t *arr;
+  int j, m;
   unsigned long i;
 
-  ret = JMarray_init (&arr, JMAX);
-  if (ret)
+  arr = JMarray_ctor (JMAX);
+  if (arr == NULL)
     {
       fprintf (stderr, "Error: failed to allocate jmarray\n");
-      exit (ret);
+      exit (EXIT_FAILURE);
     }
 
   /* This will throw errors if run under valgrind and there's something wrong
@@ -25,21 +24,22 @@ main ()
   for (j = 0; j <= JMAX; j++)
       for (m = -j; m <= j; m++)
 	{
-	  int v;
-	  arr.set (&arr, j, m, (double) i);
-	  v = arr.get (&arr, j, m);
-	  if (i != (int) v)
+	  int v, w;
+	  arr->set (arr, j, m, (double) i);
+	  v = arr->get (arr, j, m);
+	  w = arr->data[i];
+	  if ((i != (int) v) || i != (int) w)
 	    {
 	      fprintf (stderr,
-		       "Error with array indexing for (j=%d, m=%d), i: %d which should be %d\n",
-		       j, m, v, i);
-	      JMarray_free (&arr);
-	      exit (1);
+		       "Error with array indexing for (j=%d, m=%d). i: %d v: %d w: %d\n",
+		       j, m, (int) i, (int)v, (int)w);
+	      JMarray_dtor (arr);
+	      exit (EXIT_FAILURE);
 	    }
 	  i++;
 	}
 
-  JMarray_free (&arr);
+  JMarray_dtor (arr);
 
-  return ret;
+  return 0;
 }

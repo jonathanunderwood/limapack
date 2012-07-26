@@ -5,42 +5,48 @@
 #define IDX(J, K, M) (((4 * J * J + 5) * J) / 3 + 2 * J * J + K * (2 * J + 1) + M)
 #define DIM(J) (((4 * J * J + 11) * J) / 3 + (4 * J * J) + 1)
 
-int
-JKMarray_init (JKMarray * a, const int Jmax)
+JKMarray_t *
+JKMarray_ctor ( const int Jmax)
 {
   unsigned int dim = DIM (Jmax);
-  int ret = MEMORY_ALLOC_N (a->data, dim);
+  JKMarray_t *a;
 
-  if (ret == 0)
+  if (MEMORY_ALLOC(a) < 0)
     {
-      a->get = &JKMarray_get;
-      a->set = &JKMarray_set;
-      a->Jmax = Jmax;
-      a->dim = dim;
-      return 0;
+      MEMORY_OOMERR;
+      return NULL;
     }
-  else
-    return 1;
+
+  if (MEMORY_ALLOC_N (a->data, dim) < 0)
+    {
+      MEMORY_OOMERR;
+      MEMORY_FREE(a);
+      return NULL;
+    }
+
+  a->get = &JKMarray_get;
+  a->set = &JKMarray_set;
+  a->Jmax = Jmax;
+  a->dim = dim;
+
+  return a;
 }
 
 void
-JKMarray_free (JKMarray * a)
+JKMarray_dtor (JKMarray_t * a)
 {
   MEMORY_FREE (a->data);
-  a->Jmax = 0;
-  a->dim = 0;
-  a->get = NULL;
-  a->set = NULL;
+  MEMORY_FREE (a);
 }
 
 double
-JKMarray_get (JKMarray * a, const int J, const int K, const int M)
+JKMarray_get (JKMarray_t * a, const int J, const int K, const int M)
 {
   return a->data[IDX (J, K, M)];
 }
 
 void
-JKMarray_set (JKMarray * a, const int J, const int K, const int M,
+JKMarray_set (JKMarray_t * a, const int J, const int K, const int M,
 	      const double val)
 {
   a->data[IDX (J, K, M)] = val;
