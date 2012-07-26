@@ -9,8 +9,7 @@ int
 main ()
 {
   config_t cfg;
-  laser_container_t lasers;
-  int ret;
+  laser_container_t *lasers = NULL;
 
   config_init (&cfg);
 
@@ -22,7 +21,18 @@ main ()
     exit(EXIT_FAILURE);
   }
 
-  ret = laser_cfg_parse(&cfg, &lasers);
+  lasers = laser_container_cfg_parse_ctor(&cfg);
 
-  return ret;
+  config_destroy (&cfg);
+
+  if (lasers == NULL)
+    {
+      fprintf(stderr, "Failed to parse laser configuration.\n");
+      exit (EXIT_FAILURE);
+    }
+	      
+  printf ("nlasers: %d\n", lasers->nlasers);
+  laser_container_dtor(lasers);
+
+  return 0;
 }

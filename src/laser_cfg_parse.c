@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <libconfig.h>
 
+#include "laser.h"
 #include "laser_cfg_parse.h"
 #include "laser_type1.h"
 #include "memory.h"
@@ -33,30 +34,34 @@ void laser_container_dtor (laser_container_t * lasers)
 {
   int i;
 
-  for (i = 0; i<lasers->nlasers; i++)
+  for (i = 0; i < lasers->nlasers; i++)
     {
       /* We may not have completely filled the array of pointers, so some
-	 elements could be still NULL. */
+	 elements could be still NULL - this would happen following a failure in
+	 config parsing. */
       if (lasers->laser[i] != NULL)
-	MEMORY_FREE(lasers->laser[i]);
+	{
+	  //lasers->laser[i] = (laser_t *)lasers->laser[i];
+	  ((laser_t *)(lasers->laser[i]))->dtor((laser_t *)lasers->laser[i]);
+	}
     }
 
   MEMORY_FREE(lasers->laser);
   MEMORY_FREE(lasers);
 }
 
-
-int
-laser_cfg_parse (const config_t * cfg, laser_container_t *lasers)
+laser_container_t *
+laser_container_cfg_parse_ctor (const config_t * cfg)
 {
   config_setting_t *setting;
+  laser_container_t *lasers = NULL;
 
   setting = config_lookup(cfg, "lasers");
 
   if (setting == NULL)
     {
       fprintf(stderr, "Failed to find lasers section in config.\n");
-      return -1;
+      return NULL;
     }
   else
     {
@@ -65,10 +70,7 @@ laser_cfg_parse (const config_t * cfg, laser_container_t *lasers)
 
       lasers = laser_container_ctor(nlasers);
       if (lasers == NULL)
-	{
-	  MEMORY_OOMERR;
-	  return -1;
-	}
+	return NULL;
       
       for(i = 0; i < nlasers; i++)
 	{
@@ -80,25 +82,25 @@ laser_cfg_parse (const config_t * cfg, laser_container_t *lasers)
 	    {
 	      fprintf(stderr, "Failed to get laser type.\n");
 	      laser_container_dtor(lasers);
-	      return -1;
+	      return NULL;
 	    }
 
 	  switch (type) 
 	    {
 	    case TYPE1:
 	      lasers->laser[i] = (laser_type1_t *) lasers->laser[i];
-	      if (MEMORY_ALLOC(lasers->laser[i]) < 0)
+	      lasers->laser[i] = laser_type1_ctor();
+	      if (lasers->laser[i] == NULL)
 		{
-		  MEMORY_OOMERR;
 		  laser_container_dtor(lasers);
-		  return -1;
+		  return NULL;
 		}
 
 		ret = laser_type1_cfg_parse (this_laser, lasers->laser[i]);
 		if (ret)
 		  {
 		    laser_container_dtor(lasers);
-		    return -1;
+		    return NULL;
 		  }
 		
 		break;
@@ -106,10 +108,10 @@ laser_cfg_parse (const config_t * cfg, laser_container_t *lasers)
 	    default:
 	      fprintf(stderr, "Unrecognized laser type: %d\n", type);
 	      laser_container_dtor(lasers);
-	      return -1;
+	      return NULL;
 	    }
 	}
 
-      return 0;
+      return lasers;
     }
 }

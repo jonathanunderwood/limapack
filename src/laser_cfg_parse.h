@@ -7,7 +7,7 @@ typedef enum _laser_type {
 } laser_type_t;
 
 /* Structure to keep track of multiple lasers of different types. */
-typedef struct _lasers_container 
+typedef struct _laser_container 
 {
   void **laser;
   int nlasers;
@@ -16,6 +16,6 @@ typedef struct _lasers_container
 laser_container_t * laser_container_ctor (const int nlasers);
 void laser_container_dtor (laser_container_t * self);
 
-int laser_cfg_parse (const config_t * cfg, laser_container_t *lasers);
+laser_container_t *laser_container_cfg_parse_ctor (const config_t * cfg);
 
 #endif /* __LASER_CFG_PARSE_H__ */

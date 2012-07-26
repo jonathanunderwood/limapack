@@ -154,6 +154,7 @@ laser_polzn_vector_rotate (laser_polzn_vector_t * e, const double phi,
 	  e->set (e, p, newval);
 	}
     }
+  laser_polzn_vector_dtor(ein);
 }
 
 

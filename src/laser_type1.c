@@ -55,6 +55,13 @@ laser_type1_get_frequency (const laser_t * self, const double t)
 }
 
 
+static void 
+laser_type1_recast_dtor(laser_t *laser)
+{
+  laser_type1_t *l = (laser_type1_t *) laser;
+  laser_polzn_vector_dtor(l->e);
+  MEMORY_FREE(laser);
+}
 
 laser_type1_t *
 laser_type1_ctor()
@@ -70,7 +77,8 @@ laser_type1_ctor()
   laser_dispatch_register ((laser_t *) l, 
 			   &laser_type1_get_polzn_vector, 
 			   &laser_type1_get_envelope, 
-			   &laser_type1_get_frequency);
+			   &laser_type1_get_frequency,
+			   &laser_type1_recast_dtor);
 
   /* l->get_polzn_vector = &laser_type1_get_polzn_vector; */
   /* l->get_envelope = &laser_type1_get_envelope; */
@@ -82,10 +90,13 @@ laser_type1_ctor()
 
 }
 
-void laser_type1_dtor(laser_type1_t *laser)
+void 
+laser_type1_dtor(laser_type1_t *laser)
 {
+  laser_polzn_vector_dtor(laser->e);
   MEMORY_FREE(laser);
 }
+
 
 int
 laser_type1_cfg_parse (config_setting_t * element, laser_type1_t *laser)

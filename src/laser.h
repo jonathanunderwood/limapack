@@ -12,20 +12,22 @@ typedef struct _laser {
   laser_polzn_vector_t * (*get_polzn_vector) (const struct _laser *self, const double t);
   double (*get_envelope) (const struct _laser *self, const double t);
   double (*get_frequency) (const struct _laser *self, const double t);
-  //  laser_type_t type;
+  void (*dtor) (struct _laser *self);
 } laser_t;
 
 /* Constructor */
 laser_t * laser_ctor (laser_polzn_vector_t * (*get_polzn_vector) (const laser_t *self, const double t),
 		      double (*get_envelope) (const laser_t *self, const double t),
-		      double (*get_frequency) (const laser_t *self, const double t)
+		      double (*get_frequency) (const laser_t *self, const double t),
+		      void (*dtor) (laser_t *self)
 		      );
 
 /* Function to register dispatch functions. */
 void laser_dispatch_register (laser_t * laser,
 			      laser_polzn_vector_t * (*get_polzn_vector) (const laser_t *self, const double t),
 			      double (*get_envelope) (const laser_t *self, const double t),
-			      double (*get_frequency) (const laser_t *self, const double t)
+			      double (*get_frequency) (const laser_t *self, const double t),
+			      void (*dtor) (laser_t *self)
 			      );
 
 /* Destructor */
