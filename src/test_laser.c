@@ -9,7 +9,6 @@ int
 main ()
 {
   config_t cfg;
-  config_setting_t *setting;
   laser_container_t lasers;
   int ret;
 

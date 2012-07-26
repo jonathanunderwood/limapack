@@ -5,6 +5,7 @@
 #include "laser.h"
 #include "memory.h"
 #include "config_gsl_complex.h"
+#include "au.h"
 
 static laser_polzn_vector_t *
 laser_type1_get_polzn_vector(const laser_t * self, const double t)
@@ -66,7 +67,7 @@ laser_type1_ctor()
       return NULL;
     }
 
-  laser_callback_register ((laser_t *) l, 
+  laser_dispatch_register ((laser_t *) l, 
 			   &laser_type1_get_polzn_vector, 
 			   &laser_type1_get_envelope, 
 			   &laser_type1_get_frequency);
@@ -81,9 +82,13 @@ laser_type1_ctor()
 
 }
 
+void laser_type1_dtor(laser_type1_t *laser)
+{
+  MEMORY_FREE(laser);
+}
 
 int
-laser_type1_parse (config_setting_t * element, laser_type1_t *laser)
+laser_type1_cfg_parse (config_setting_t * element, laser_type1_t *laser)
 {
   double I, freq, t0, trise, tfall;
 

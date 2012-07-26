@@ -16,7 +16,7 @@ config_setting_lookup_gsl_complex(const config_setting_t * setting, const char *
     {
       double re = config_setting_get_float_elem(c, 0);
       double im = config_setting_get_float_elem(c, 1);
-      gsl_set_complex(value, re, im);
+      GSL_SET_COMPLEX(value, re, im);
       return CONFIG_TRUE;
     }
 

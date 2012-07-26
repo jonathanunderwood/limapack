@@ -61,7 +61,7 @@ laser_polzn_vector_ctor_from_cart (const gsl_complex ex, const gsl_complex ey,
   gsl_complex i = gsl_complex_rect (0.0, 1.0);
   gsl_complex iey = gsl_complex_mul (ey, i);
   gsl_complex val;
-  laser_polzn_vector_t * e = laser_polzn_vector_ctor (e);
+  laser_polzn_vector_t * e = laser_polzn_vector_ctor ();
 
   if (e == NULL)
     return NULL;
@@ -78,6 +78,8 @@ laser_polzn_vector_ctor_from_cart (const gsl_complex ex, const gsl_complex ey,
   val = gsl_complex_add (ex, iey);
   val = gsl_complex_mul_real (val, -rt2);
   e->set (e, 1, val);
+
+  return e;
 }
 
 
@@ -248,4 +250,6 @@ laser_polzn_tensor_ctor_from_vectors (const laser_polzn_vector_t * e1,
 	    }
 	}
     }
+
+  return E;
 }

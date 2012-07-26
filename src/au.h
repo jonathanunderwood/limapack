@@ -22,7 +22,7 @@
 #define E_TO_AU(E) ((E) * 1.944690505e-12)
 
 /* Convert frequency in Hertz to atomic units. */
-#define HZ_TO_AU (HZ) ((HZ) / 4.13413732e16)
+#define HZ_TO_AU(HZ) ((HZ) / 4.13413732e16)
 
 
 #endif /* __AU_H__ */

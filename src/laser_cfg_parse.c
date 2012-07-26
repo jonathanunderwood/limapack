@@ -6,7 +6,8 @@
 #include "laser_type1.h"
 #include "memory.h"
 
-laser_container_t * laser_container_ctor (const int nlasers)
+laser_container_t * 
+laser_container_ctor (const int nlasers)
 {
   laser_container_t * l;
 
@@ -93,7 +94,7 @@ laser_cfg_parse (const config_t * cfg, laser_container_t *lasers)
 		  return -1;
 		}
 
-		ret = laser_type1_parse (this_laser, lasers->laser[i]);
+		ret = laser_type1_cfg_parse (this_laser, lasers->laser[i]);
 		if (ret)
 		  {
 		    laser_container_dtor(lasers);

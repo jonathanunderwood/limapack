@@ -1,6 +1,7 @@
 #ifndef __LASER_TYPE1_H__
 #define __LASER_TYPE1_H__
 
+#include <libconfig.h>
 #include "laser.h"
 
 typedef struct _laser_type1
@@ -23,6 +24,7 @@ typedef struct _laser_type1
 } laser_type1_t;
 
 laser_type1_t * laser_type1_ctor();
-
+int laser_type1_cfg_parse (config_setting_t * element, laser_type1_t *laser);
+void laser_type1_dtor(laser_type1_t *laser);
 
 #endif /* __LASER_TYPE1_H__ */
