@@ -18,8 +18,8 @@ typedef struct _laser_type1
   double trise;
   double tfall;
   double envmin;
-  gsl_complex ex, ey, ez;
   double phi, theta, chi;
+  gsl_complex ex, ey, ez;
   laser_polzn_vector_t *e;
 } laser_type1_t;
 
