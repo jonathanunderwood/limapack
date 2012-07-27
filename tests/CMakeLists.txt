@@ -14,3 +14,8 @@ add_executable (test_jkmarray test_jkmarray.c)
 target_link_libraries(test_jkmarray limapack config gsl m)
 add_test(NAME test_jkmarray
   COMMAND test_jkmarray)
+
+add_executable (test_polarizability test_polarizability.c)
+target_link_libraries(test_polarizability limapack config gsl m)
+add_test(NAME test_polarizability
+  COMMAND test_polarizability)
