@@ -8,8 +8,5 @@ add_library(limapack STATIC
   jkmarray.c
   jmarray.c
 )
-target_link_libraries(limapack libconfig gsl m)
+target_link_libraries(limapack config gsl m)
 
-
-add_executable(test_laser test_laser.c)
-target_link_libraries(test_laser limapack)
