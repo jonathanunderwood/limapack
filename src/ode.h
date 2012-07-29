@@ -1,9 +1,9 @@
 #ifndef __ODE_H__
-#define __ODE_H__ 1
+#define __ODE_H__
 
 #include <gsl/gsl_odeiv.h>
 
-typedef struct ode_params
+typedef struct _odesys
 {
   double hinit, hstep;
   double eps_rel, eps_abs, y_scale, dydx_scale;
@@ -13,20 +13,20 @@ typedef struct ode_params
   gsl_odeiv_evolve *evolve;
   gsl_odeiv_step_type *step_type;
   void *params;
-} ode_params;
+} odesys_t;
 
-void ode_pfile_memread (const char *buff, ode_params * ode);
-void ode_pfile_read (FILE * fnp, ode_params * ode);
-void ode_init (ode_params * ode, const int nvar, void *params,
-	       int (*function) (double t, const double y[], double dydt[],
-				void *params),
-	       int (*jacobian) (double t, const double y[], double *dfdy,
-				double dfdt[], void *params),
-	       const gsl_odeiv_step_type * ode_step_type);
-void ode_free (ode_params * ode);
-void ode_reset (ode_params * ode);
-void ode_step (const double t1, const double t2, double *coef,
-	       ode_params * ode);
+
+odesys_t odesys_ctor (const int nvar, void *params,
+		      int (*function) (double t, const double y[], 
+				       double dydt[], void *params),
+		      int (*jacobian) (double t, const double y[], 
+				       double *dfdy,double dfdt[], 
+				       void *params),
+		      const gsl_odeiv_step_type * ode_step_type);
+void odesys_dtor (odesys_t * ode);
+void odesys_reset (odesys_t * ode);
+int odesys_step (odesys_t * ode, const double t1, const double t2, double *coef);
+int ode_cfg_parse(odesys_t * ode, const config_t * cfg);
 
 #endif /* __ODE_H__ */
 
