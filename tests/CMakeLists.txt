@@ -19,3 +19,8 @@ add_executable (test_polarizability test_polarizability.c)
 target_link_libraries(test_polarizability limapack config gsl m)
 add_test(NAME test_polarizability
   COMMAND test_polarizability)
+
+add_executable (test_ode test_ode.c)
+target_link_libraries(test_ode limapack config gsl m)
+add_test(NAME test_ode
+  COMMAND test_ode)

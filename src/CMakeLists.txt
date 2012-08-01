@@ -8,7 +8,7 @@ add_library(limapack STATIC
   jkmarray.c
   jmarray.c
   polarizability.c
-  ode.c
+  odesys.c
 )
 target_link_libraries(limapack config gsl m)
 

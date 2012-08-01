@@ -13,7 +13,7 @@ main ()
 
   config_init (&cfg);
 
-  if(! config_read_file(&cfg, "test_laser.cfg"))
+  if(! config_read_file(&cfg, "test.cfg"))
   {
     fprintf(stderr, "%s:%d - %s\n", config_error_file(&cfg),
             config_error_line(&cfg), config_error_text(&cfg));
