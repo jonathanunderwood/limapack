@@ -4,7 +4,9 @@ project (LIMAPACK)
 ## Print out compiler and linker commands
 set (CMAKE_VERBOSE_MAKEFILE "TRUE")
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
+find_package(libconfig)
 
 #set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake) 
 #FIND_PACKAGE(GSL REQUIRED)
