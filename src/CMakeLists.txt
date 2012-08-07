@@ -10,5 +10,5 @@ add_library(limapack STATIC
   polarizability.c
   odesys.c
 )
-target_link_libraries(limapack config gsl m)
+target_link_libraries(limapack ${LIBCONFIG_LIBRARIES} gsl m)
 
