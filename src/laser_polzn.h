@@ -48,9 +48,14 @@ void laser_polzn_tensor_set (laser_polzn_tensor_t * E, const int k, const int p,
 			     const gsl_complex val);
 laser_polzn_tensor_t * laser_polzn_tensor_ctor ();
 
-laser_polzn_tensor_t *
-laser_polzn_tensor_ctor_from_vectors (const laser_polzn_vector_t * e1,
+laser_polzn_tensor_t * 
+laser_polzn_tensor_from_vectors_ctor (const laser_polzn_vector_t * e1, 
 				      const laser_polzn_vector_t * e2);
+
+void
+laser_polzn_tensor_set_from_vectors (laser_polzn_tensor_t * E, 
+				     const laser_polzn_vector_t * e1, 
+				     const laser_polzn_vector_t * e2);
 
 void laser_polzn_tensor_dtor (laser_polzn_tensor_t * E);
 

@@ -205,13 +205,23 @@ laser_polzn_tensor_ctor_from_vectors (const laser_polzn_vector_t * e1,
 /* Calculates the polarization tensor E = [e1* x e2]^k_q. Pass e1 to this
    function and not e1*. */
 {
-  int k;
-  gsl_complex zero = gsl_complex_rect (0.0, 0.0);
-
   laser_polzn_tensor_t *E =  laser_polzn_tensor_ctor ();
- 
+
   if (E == NULL)
     return NULL;
+
+  laser_polzn_tensor_set_from_vectors (E, e1, e2);
+
+  return E;
+}
+
+void
+laser_polzn_tensor_set_from_vectors (laser_polzn_tensor_t * E, 
+				     const laser_polzn_vector_t * e1, 
+				     const laser_polzn_vector_t * e2)
+{
+  int k;
+  gsl_complex zero = gsl_complex_rect (0.0, 0.0);
 
   for (k = 0; k <= 2; k++)
     {
@@ -251,6 +261,4 @@ laser_polzn_tensor_ctor_from_vectors (const laser_polzn_vector_t * e1,
 	    }
 	}
     }
-
-  return E;
 }

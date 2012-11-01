@@ -22,26 +22,30 @@ laser_type1_get_envelope (const laser_t * self, const double t)
    a pulse with a Gaussian profile, and is real valued. */
 {
   laser_type1_t *l = (laser_type1_t *) self;
-  double t0 = l->t0;
-  double E0 = l->E0;
+  double env;
 
-  if (t < t0)
+  if (t < l->t0)
     {
-      double a = (t - t0);
+      double a = (t - l->t0);
       double trise = l->trise;
-      return E0 * exp (-(a * a) / (2.0 * trise * trise));
+      env = exp (-(a * a) / (2.0 * trise * trise));
     }
-
-  else if (t > t0)
+  else if (t > l->t0)
     {
-      double a = (t - t0);
+      double a = (t - l->t0);
       double tfall = l->tfall;
-      return E0 * exp (-(a * a) / (2.0 * tfall * tfall));
+      env = exp (-(a * a) / (2.0 * tfall * tfall));
     }
-
   else
-    return E0;
+    env = 1.0;
 
+  /* envmin is the minimum value of the envelope function when it's
+     normalized to 1 that we wish to consider. If env is less than
+     this value we return a negative value signifying we wish to skip
+     this laser at this time t. */
+  if (env > l->envmin) 
+    return l->E0 * env; 
+  else return -1.0; 
 }
 
 static double
@@ -56,56 +60,36 @@ laser_type1_get_frequency (const laser_t * self, const double t)
 
 
 static void 
-laser_type1_recast_dtor(laser_t *laser)
+laser_type1_dtor(laser_t *laser)
 {
-  laser_type1_t *l = (laser_type1_t *) laser;
+  laser_type1_t * l = (laser_type1_t *) laser;
   laser_polzn_vector_dtor(l->e);
-  MEMORY_FREE(laser);
+  MEMORY_FREE(l);
 }
 
-laser_type1_t *
-laser_type1_ctor()
+laser_t *
+laser_type1_cfg_parse_ctor (config_setting_t * element)
 {
-  laser_type1_t * l;
-  
-  if (MEMORY_ALLOC(l) < 0)
+  double I, freq, t0, trise, tfall;
+  laser_type1_t * laser;
+
+  if (MEMORY_ALLOC(laser) < 0)
     {
       MEMORY_OOMERR;
       return NULL;
     }
 
-  laser_dispatch_register ((laser_t *) l, 
+  /* Register dispatch functions. */
+  laser_dispatch_register ((laser_t *) laser, 
 			   &laser_type1_get_polzn_vector, 
 			   &laser_type1_get_envelope, 
 			   &laser_type1_get_frequency,
-			   &laser_type1_recast_dtor);
-
-  /* l->get_polzn_vector = &laser_type1_get_polzn_vector; */
-  /* l->get_envelope = &laser_type1_get_envelope; */
-  /* l->get_frequency = &laser_type1_get_frequency; */
-
-  /* l->parent.type = 1; */
-
-  return l;
-
-}
-
-void 
-laser_type1_dtor(laser_type1_t *laser)
-{
-  laser_polzn_vector_dtor(laser->e);
-  MEMORY_FREE(laser);
-}
-
-
-int
-laser_type1_cfg_parse (config_setting_t * element, laser_type1_t *laser)
-{
-  double I, freq, t0, trise, tfall;
+			   &laser_type1_dtor);
 
   if (!(config_setting_lookup_float (element, "t0", &t0) &&
 	config_setting_lookup_float (element, "trise", &trise) &&
 	config_setting_lookup_float (element, "tfall", &tfall) &&
+	config_setting_lookup_float (element, "envmin", &(laser->envmin)) &&
 	config_setting_lookup_float (element, "I", &I) &&
 	config_setting_lookup_float (element, "freq", &freq) &&
 	config_setting_lookup_float (element, "phi", &(laser->phi)) &&
@@ -117,7 +101,8 @@ laser_type1_cfg_parse (config_setting_t * element, laser_type1_t *laser)
 	))
     {
       fprintf(stderr, "Incomplete laser type 1 description in file.\n"); 
-      return -1;
+      MEMORY_FREE (laser);
+      return NULL;
     }
 
   /* Convert laser intensity in W/cm^2 to electric field in AU. */
@@ -135,6 +120,6 @@ laser_type1_cfg_parse (config_setting_t * element, laser_type1_t *laser)
   laser->e = laser_polzn_vector_ctor_from_cart (laser->ex, laser->ey, laser->ez);
   laser->e->rotate(laser->e, laser->phi, laser->theta, laser->chi);
 
-  return 0;
+  return (laser_t *)laser;
 }
 

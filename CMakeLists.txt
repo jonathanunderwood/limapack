@@ -13,7 +13,7 @@ find_package(libconfig)
 
 ## Compiler flags
 if(CMAKE_COMPILER_IS_GNUCC)
-    set(CMAKE_C_FLAGS "-Wall -g -O2")
+    set(CMAKE_C_FLAGS "-Wall -Werror -g -O2")
     set(CMAKE_EXE_LINKER_FLAGS "-s")  ## Strip binary
 endif()
 

@@ -4,9 +4,9 @@
 
 #include "jmarray.h"
 
-typedef JMarray_t polarizability_t;
+typedef JMarray_double_t polarizability_t;
 
-polarizability_t * polarizability_ctor_from_cart (const double a_xx, 
+polarizability_t * polarizability_from_cart_ctor (const double a_xx, 
 						  const double a_yy, 
 						  const double a_zz);
 polarizability_t * polarizability_ctor ();

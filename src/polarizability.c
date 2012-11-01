@@ -6,18 +6,18 @@
 polarizability_t *
 polarizability_ctor()
 {
-  polarizability_t *alpha = JMarray_ctor(2);
+  polarizability_t *alpha = JMarray_double_ctor(2);
   return alpha;
 }
 
 void
 polarizability_dtor(polarizability_t *alpha)
 {
-  JMarray_dtor(alpha);
+  JMarray_double_dtor(alpha);
 }
 
 polarizability_t *
-polarizability_ctor_from_cart (const double a_xx, 
+polarizability_from_cart_ctor (const double a_xx, 
 			       const double a_yy, 
 			       const double a_zz)
 {

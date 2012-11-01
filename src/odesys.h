@@ -11,8 +11,19 @@
 #include <gsl/gsl_errno.h>
 #define ODESYS_SUCCESS GSL_SUCCESS
 
+#include "molecule.h"
+#include "laser.h"
+
+typedef struct _odeparams
+{
+  molecule_t *molecule;
+  laser_collection_t *lasers;
+} odeparams_t;
+
 typedef struct _odesys
 {
+  int npoints;
+  double tstart, tend, tstep;
   double hstep, hinit;
   double eps_rel, eps_abs, y_scale, dydx_scale;
   gsl_odeiv_system system;
@@ -20,21 +31,23 @@ typedef struct _odesys
   gsl_odeiv_control *control;
   gsl_odeiv_evolve *evolve;
   gsl_odeiv_step_type *step_type;
-  void *params;
+  odeparams_t *params;
 } odesys_t;
 
-
-int odesys_init (odesys_t * ode, const int nvar, void *params,
-		 int (*function) (double t, const double y[], 
-				  double dydt[], void *params)
-		 );
-
+int odesys_init (odesys_t * ode, molecule_t * molecule, 
+		 laser_collection_t *lasers);
 
 odesys_t * odesys_ctor ();
 void odesys_dtor (odesys_t * ode);
 void odesys_reset (odesys_t * ode);
-int odesys_step (odesys_t * ode, const double t1, const double t2, double *coef);
+int odesys_step (odesys_t * ode, 
+		 const double t1, const double t2, 
+		 double *coef);
 int odesys_cfg_parse(odesys_t * ode, const config_t * cfg);
+odesys_t * odesys_cfg_parse_ctor(const config_t * cfg);
+
+int odesys_tdse_propagate_simple (odesys_t *odesys);
+
 
 #endif /* __ODESYS_H__ */
 
