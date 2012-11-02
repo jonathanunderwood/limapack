@@ -327,6 +327,8 @@ linear_molecule_ctor(const double B, const int Jmax, const double T,
 			     linear_molecule_dispatched_dtor);
   mol->Jmax = Jmax;
   mol->poptol = poptol;
+  mol->oddwt = oddwt;
+  mol->evenwt = evenwt;
 
   /* Convert to atomic units. */
   mol->B = WN_TO_AU(B);
