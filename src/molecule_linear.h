@@ -16,6 +16,7 @@ typedef struct _linear_molecule
   polarizability_t * alpha;
   int Jmax;
   int ncoef;
+  int nexpval;
   JMarray_int_t * job_status;
 } linear_molecule_t;
 
@@ -46,5 +47,6 @@ molecule_tdse_worker_t * linear_molecule_tdse_worker_ctor (const molecule_t *mol
 void linear_molecule_tdse_worker_dtor (const molecule_t *molecule, 
 				       molecule_tdse_worker_t * worker);
 int linear_molecule_get_ncoef(const molecule_t * molecule);
+int linear_molecule_get_nexpval(const molecule_t *molecule);
 
 #endif /* __MOLECULE_LINEAR_H__ */

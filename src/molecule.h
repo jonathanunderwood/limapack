@@ -43,6 +43,7 @@ typedef struct _molecule
   void (*tdse_worker_dtor)(const struct _molecule *self,
 			   molecule_tdse_worker_t * worker);
   int (*get_ncoef) (const struct _molecule *self);
+  int (*get_nexpval) (const struct _molecule *self);
   void (*dtor)(struct _molecule *self);
 } molecule_t;
 
@@ -70,6 +71,7 @@ molecule_dispatch_register(molecule_t * molecule,
 			   void (*tdse_worker_dtor)(const molecule_t *self, 
 						    molecule_tdse_worker_t * worker),
 			   int (*get_ncoef) (const molecule_t *self),
+			   int (*get_nexpval) (const molecule_t *self),
 			   void (*dtor)(molecule_t *self)
 			   );
 
@@ -87,6 +89,7 @@ molecule_ctor(int (*tdse_rhs) (const molecule_t *mol, const laser_collection_t *
 	      void (*tdse_worker_dtor)(const molecule_t *self, 
 				       molecule_tdse_worker_t * worker),
 	      int (*get_ncoef) (const molecule_t *self),
+	      int (*get_nexpval) (const molecule_t *self),
 	      void (*dtor)(struct _molecule *self)
 	      );
 void molecule_dtor(molecule_t * molecule);

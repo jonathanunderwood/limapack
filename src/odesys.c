@@ -117,6 +117,8 @@ odesys_init (odesys_t * ode, molecule_t * molecule,
 	     laser_collection_t *lasers)
 {
   int ncoef = molecule->get_ncoef(molecule);
+  int nexpval = molecule->get_nexpval(molecule);
+  int i;
 
   /* See odesys_ctor - this checks to see if ode_cfg_parse has been
      called to set up the basic parameters before odesys_init is
@@ -148,13 +150,38 @@ odesys_init (odesys_t * ode, molecule_t * molecule,
 
   /* This allows us to reset hstep if we need to. */
   ode->hinit = ode->hstep;
-  
+
+  /* Initialize storge for expectation values. This is done as a
+     contiguous memory block intentionally. */
+  if (MEMORY_ALLOC_N(ode->expval, ode->npoints) < 0)
+    {
+      MEMORY_OOMERR;
+      //      odesys_dtor();
+      return -1;
+    }
+
+  if (MEMORY_ALLOC_N((ode->expval)[0], ode->npoints * nexpval) < 0)
+    {
+      MEMORY_OOMERR;
+      MEMORY_FREE(ode->expval);
+      return -1;
+    }
+
+  for (i = 1; i < ode->npoints; i++)
+    (ode->expval)[i] = (ode->expval)[i - 1] + nexpval;
+ 
   return 0;
 }
 
 void
 odesys_dtor (odesys_t * ode)
 {
+  if (ode->expval[0] != NULL)
+    MEMORY_FREE(ode->expval[0]);
+
+  if (ode->expval != NULL)
+    MEMORY_FREE(ode->expval);
+
   gsl_odeiv_evolve_free (ode->evolve);
   gsl_odeiv_control_free (ode->control);
   gsl_odeiv_step_free (ode->step);
@@ -234,7 +261,8 @@ odesys_tdse_propagate_simple (odesys_t *odesys)
 	 if (mol->check_populations(mol, coef) != 0)
 	   {
 	     fprintf(stderr, 
-		     "Populations building up unacceptably in TDSE propagation at time=%g ps. Exiting.\n", AU_TO_PS(t1));
+		     "Populations building up unacceptably in TDSE propagation at time=%g ps. Exiting.\n", 
+		     AU_TO_PS(t1));
 	     MEMORY_FREE(coef);
 	     mol->tdse_worker_dtor(mol, worker);
 	     return -1;

@@ -20,6 +20,10 @@ typedef struct _odeparams
   laser_collection_t *lasers;
 } odeparams_t;
 
+/* Some sensible defaults for error calculation:
+   double eps_rel = 1.0e-6, eps_abs = 1.0e-6;
+   double y_scale = 1.0, dydx_scale = 1.0; */
+
 typedef struct _odesys
 {
   int npoints;
@@ -32,6 +36,7 @@ typedef struct _odesys
   gsl_odeiv_evolve *evolve;
   gsl_odeiv_step_type *step_type;
   odeparams_t *params;
+  double **expval;
 } odesys_t;
 
 int odesys_init (odesys_t * ode, molecule_t * molecule, 
@@ -51,6 +56,3 @@ int odesys_tdse_propagate_simple (odesys_t *odesys);
 
 #endif /* __ODESYS_H__ */
 
-/* Some sensible defaults for error calculation:
-   double eps_rel = 1.0e-6, eps_abs = 1.0e-6;
-   double y_scale = 1.0, dydx_scale = 1.0; */

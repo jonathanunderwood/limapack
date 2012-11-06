@@ -24,6 +24,7 @@ molecule_dispatch_register(molecule_t * molecule,
 			   void (*tdse_worker_dtor)(const molecule_t *self, 
 						    molecule_tdse_worker_t * worker),
 			   int (*get_ncoef) (const molecule_t *self),
+			   int (*get_nexpval) (const molecule_t *self),
 			   void (*dtor)(struct _molecule *self)
 			   )
 
@@ -36,6 +37,7 @@ molecule_dispatch_register(molecule_t * molecule,
   molecule->tdse_worker_ctor = tdse_worker_ctor;
   molecule->tdse_worker_dtor = tdse_worker_dtor;
   molecule->get_ncoef = get_ncoef;
+  molecule->get_nexpval = get_nexpval;
   molecule->dtor = dtor;
 }
 
@@ -53,6 +55,7 @@ molecule_ctor(int (*tdse_rhs) (const molecule_t *mol, const laser_collection_t *
 	      void (*tdse_worker_dtor)(const molecule_t *self, 
 				       molecule_tdse_worker_t * worker),
 	      int (*get_ncoef) (const molecule_t *self),
+	      int (*get_nexpval) (const molecule_t *self),
 	      void (*dtor)(molecule_t *self)
 	      )
 {
@@ -68,7 +71,7 @@ molecule_ctor(int (*tdse_rhs) (const molecule_t *mol, const laser_collection_t *
   molecule_dispatch_register(molecule, tdse_rhs, get_tdse_job, 
 			     set_tdse_job_done, check_populations,
 			     tdse_worker_ctor, tdse_worker_dtor,
-			     get_ncoef, dtor);
+			     get_ncoef, get_nexpval, dtor);
   return molecule;
 }
 

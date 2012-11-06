@@ -18,6 +18,9 @@
 #include "dmtxel.h"
 #include "au.h"
 
+#define __LM_NEXPVAL__ 9
+
+
 static inline double
 linear_molecule_energy(const linear_molecule_t *mol, const int J)
 {
@@ -34,6 +37,12 @@ linear_molecule_boltzmann_statwt(const linear_molecule_t * mol,
   double E = linear_molecule_energy (mol, J); 
 
   return wt * exp (-E / mol->kT) / mol->partfn; 
+}
+
+int
+linear_molecule_get_nexpval(const molecule_t *molecule)
+{
+  return __LM_NEXPVAL__;
 }
 
 int
@@ -324,6 +333,7 @@ linear_molecule_ctor(const double B, const int Jmax, const double T,
 			     linear_molecule_tdse_worker_ctor,
 			     linear_molecule_tdse_worker_dtor,
 			     linear_molecule_get_ncoef,
+			     linear_molecule_get_nexpval,
 			     linear_molecule_dispatched_dtor);
   mol->Jmax = Jmax;
   mol->poptol = poptol;
@@ -424,3 +434,4 @@ linear_molecule_dtor(linear_molecule_t * mol)
   MEMORY_FREE (mol);
 }
 
+#undef __LM_NEXPVAL__
