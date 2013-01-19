@@ -11,6 +11,12 @@ find_package(libconfig)
 #set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake) 
 #FIND_PACKAGE(GSL REQUIRED)
 
+# Ascertain if we have MPI available
+find_package(MPI)
+
+# Find HDF5 package, required for data output
+find_package(HDF5 REQUIRED)
+
 ## Compiler flags
 if(CMAKE_COMPILER_IS_GNUCC)
     set(CMAKE_C_FLAGS "-Wall -Werror -g -O2")
@@ -18,8 +24,8 @@ if(CMAKE_COMPILER_IS_GNUCC)
 endif()
 
 ## Turn on tests
-include(CTest)
-ENABLE_TESTING()
+#include(CTest)
+#ENABLE_TESTING()
 
 add_subdirectory (src)
-add_subdirectory (tests)
+#add_subdirectory (tests)

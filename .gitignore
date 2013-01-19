@@ -10,3 +10,4 @@ CTestTestfile.cmake
 DartConfiguration.tcl
 Testing
 lima
+build/

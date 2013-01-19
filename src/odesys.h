@@ -14,6 +14,12 @@
 #include "molecule.h"
 #include "laser.h"
 
+typedef struct _odesys_expval
+{
+  int npoints;
+  molecule_expval_t **data;
+} odesys_expval_t;
+
 typedef struct _odeparams
 {
   molecule_t *molecule;
@@ -36,7 +42,7 @@ typedef struct _odesys
   gsl_odeiv_evolve *evolve;
   gsl_odeiv_step_type *step_type;
   odeparams_t *params;
-  double **expval;
+  odesys_expval_t *expval;
 } odesys_t;
 
 int odesys_init (odesys_t * ode, molecule_t * molecule, 
@@ -53,6 +59,12 @@ odesys_t * odesys_cfg_parse_ctor(const config_t * cfg);
 
 int odesys_tdse_propagate_simple (odesys_t *odesys);
 
+int odesys_expval_fwrite(const odesys_t *ode, const char *filename);
+
+#ifdef BUILD_WITH_MPI
+int odesys_tdse_propagate_mpi_master (odesys_t *odesys);
+int odesys_tdse_propagate_mpi_slave (odesys_t *odesys);
+#endif /* BUILD_WITH_MPI */
 
 #endif /* __ODESYS_H__ */
 

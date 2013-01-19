@@ -8,6 +8,11 @@
 #include <gsl/gsl_errno.h>
 
 #include <libconfig.h>
+#include <hdf5.h>
+
+#ifdef BUILD_WITH_MPI
+#include <mpi.h>
+#endif
 
 #include "molecule.h"
 #include "laser.h"
@@ -16,10 +21,8 @@
 #include "memory.h"
 #include "molecule_linear.h"
 #include "dmtxel.h"
+#include "dcmsq.h"
 #include "au.h"
-
-#define __LM_NEXPVAL__ 9
-
 
 static inline double
 linear_molecule_energy(const linear_molecule_t *mol, const int J)
@@ -39,15 +42,187 @@ linear_molecule_boltzmann_statwt(const linear_molecule_t * mol,
   return wt * exp (-E / mol->kT) / mol->partfn; 
 }
 
-int
-linear_molecule_get_nexpval(const molecule_t *molecule)
+typedef struct _linear_molecule_expval
 {
-  return __LM_NEXPVAL__;
+  dcmsq_expval_t *dcmsq;
+} linear_molecule_expval_t;
+
+static molecule_expval_t *
+linear_molecule_expval_ctor (const molecule_t *molecule)
+{
+  //  linear_molecule_t *mol = (linear_molecule_t *) molecule;
+  linear_molecule_expval_t *expval = NULL;
+
+  if (MEMORY_ALLOC(expval) < 0)
+    {
+      MEMORY_OOMERR;
+      return NULL;
+    }
+
+  if (MEMORY_ALLOC(expval->dcmsq) < 0)
+    {
+      MEMORY_OOMERR;
+      MEMORY_FREE(expval);
+      return NULL;
+    }
+
+  return expval;
 }
 
-int
-linear_molecule_get_tdse_job(molecule_t *molecule, molecule_tdse_worker_t *worker,
-			     double *coef,  double * weight)
+static void 
+linear_molecule_expval_dtor (const molecule_t *molecule, molecule_expval_t *expval)
+/* Note at present first argument is unused. Kept for generality and future use. */
+{
+  //  linear_molecule_t *mol = (linear_molecule_t *) molecule; 
+  linear_molecule_expval_t *exp = (linear_molecule_expval_t *) expval;
+
+  MEMORY_FREE(exp->dcmsq);
+  MEMORY_FREE(exp);
+}
+
+static void linear_molecule_expval_zero(const molecule_t *molecule, 
+					molecule_expval_t *expval)
+/* Set all expectation values to zero. Note at present first argument
+   is unused - kept for generality and future use. Also, we could
+   directly pass a correctly typed expval pointer, but we'll stick
+   with the generic for now and recast.*/
+{
+  //  linear_molecule_t *mol = (linear_molecule_t *) molecule;
+  linear_molecule_expval_t *exp = (linear_molecule_expval_t *) expval;
+  dcmsq_expval_zero(exp->dcmsq);
+}
+
+static int
+linear_molecule_expval_fwrite (const molecule_t *molecule,
+			       const molecule_expval_t *expval,
+			       const hid_t location)
+{
+  // TODO: write out data. Each type of expval as it's own path.
+  // Eg. /expval/dcmsq
+  // Also want a metadata node that contains the config?
+  linear_molecule_expval_t *exp = (linear_molecule_expval_t *) expval;
+  int ret = dcmsq_fwrite (exp->dcmsq, location);
+  return ret;
+}
+
+static void 
+linear_molecule_expval_calc (const molecule_t *molecule, const double *coef, 
+			      const double t,
+			      molecule_expval_t *expvalue)
+{
+  linear_molecule_t *mol = (linear_molecule_t *) molecule;
+  linear_molecule_expval_t *expval = (linear_molecule_expval_t *) expvalue;
+  const double *coef_r = coef;
+  const double *coef_i = coef + mol->ncoef;
+  int J;
+
+  linear_molecule_expval_zero(molecule, expval);
+
+  for (J = 0; J <= mol->Jmax; J++)
+    {
+      int Jpmin = J - 2, Jpmax = J + 2, M;
+
+      if (Jpmin < 0)
+	Jpmin = 0;
+
+      if (Jpmax > mol->Jmax)
+	Jpmax = mol->Jmax;
+
+      for (M = -J; M <= J; M++)
+	{
+	  double E = linear_molecule_energy (mol, J);
+	  int i1 = JMarray_idx (J, M);
+	  int Jp;
+	  gsl_complex A;
+
+	  GSL_SET_COMPLEX (&A, coef_r[i1], coef_i[i1]);
+
+	  if (gsl_complex_abs (A) < mol->coefmin)
+	    continue;
+
+	  A = gsl_complex_conjugate (A);
+
+	  for (Jp = Jpmin; Jp <= Jpmax; Jp++)
+	    {
+	      int p;
+
+	      for (p = -2; p <= 2; p++)
+		{
+		  int Mp = M + p;
+		  double Ep;
+		  int i2;
+		  gsl_complex Ap, c1, c2, c3;
+		  dcmsq_mtxel_t dcmsq_mtxel;
+
+		  if (abs (Mp) > Jp)
+		    continue;
+
+		  Ep = linear_molecule_energy (mol, Jp);
+		  i2 = JMarray_idx (Jp, Mp);
+
+		  GSL_SET_COMPLEX (&Ap, coef_r[i2], coef_i[i2]);
+
+		  if (gsl_complex_abs (Ap) < mol->coefmin)
+		    continue;
+
+		  c1 = gsl_complex_mul (A, Ap);
+		  c2 = gsl_complex_polar (1.0, (E - Ep) * t);
+		  c3 = gsl_complex_mul (c1, c2);
+
+		  dcmsq_mtxel_calc (J, 0, M, Jp, 0, Mp, &dcmsq_mtxel);
+		  dcmsq_expval_add_mtxel_weighted_complex (expval->dcmsq, &dcmsq_mtxel, c3);
+		}
+	    }
+	}
+    }
+}
+
+static void 
+linear_molecule_expval_add_weighted (const molecule_t *molecule, 
+				     molecule_expval_t *a, const molecule_expval_t *b,
+				     const double weight)
+/* Perform a = a + (weight * b) */ 
+{
+  //  linear_molecule_t *mol = (linear_molecule_t *) molecule;
+  linear_molecule_expval_t *aa = (linear_molecule_expval_t *) a;
+  linear_molecule_expval_t *bb = (linear_molecule_expval_t *) b;
+  
+  dcmsq_expval_add_weighted (aa->dcmsq, bb->dcmsq, weight);
+  return;
+}
+
+#ifdef BUILD_WITH_MPI
+static int
+linear_molecule_expval_mpi_send(const molecule_t *molecule,
+				const molecule_expval_t *expval, 
+				int dest, int tag, MPI_Comm comm)
+{
+  //  const linear_molecule_t *mol = (linear_molecule_expval_t *) molecule;
+  const linear_molecule_expval_t *ev = (linear_molecule_expval_t *) expval;
+  int ret;
+
+  ret = dcmsq_expval_mpi_send(ev->dcmsq, dest, tag, comm);
+
+  return ret;
+}
+
+static int
+linear_molecule_expval_mpi_recv(const molecule_t *molecule, 
+				molecule_expval_t *expval, 
+				int dest, int tag, MPI_Comm comm)
+{
+  //  linear_molecule_t *mol = (linear_molecule_expval_t *) molecule;
+  linear_molecule_expval_t *ev = (linear_molecule_expval_t *) expval;
+  int ret;
+  
+  ret = dcmsq_expval_mpi_recv (ev->dcmsq, dest, tag, comm);
+
+  return ret;
+}
+#endif
+
+static int
+linear_molecule_get_tdse_job(molecule_t *molecule, molecule_tdse_worker_t *worker)
 {
   linear_molecule_t *mol = (linear_molecule_t *) molecule;
   linear_molecule_tdse_worker_t *w = 
@@ -62,24 +237,13 @@ linear_molecule_get_tdse_job(molecule_t *molecule, molecule_tdse_worker_t *worke
 	if (status == TJ_TODO)
 	  {
 	    double wt = linear_molecule_boltzmann_statwt(mol, J);
+
 	    fprintf(stdout, "J: %d M: %d wt: %g\n", J, M, wt); 
 	    if (wt < mol->poptol) /* Population in this state negligible */
 		mol->job_status->set(mol->job_status, J, M, TJ_DONE);
 	    else
 	      {
-		int i;
-
 		mol->job_status->set(mol->job_status, J, M, TJ_STARTED);
-		*weight = wt;
-
-		/* Set all real and imaginary parts of the
-		   wavefunction coefficients to zero. */ 
-		for (i = 0; i < 2 * molecule->get_ncoef(molecule); i++)
-		  coef[i] = 0.0;
-		
-		/* And now set the real part of the (J, M) coefficient to 1. */
-		coef[JMarray_idx (J, M)] = 1.0; /* Im part is 0.0, set above. */
-
 		w->J = J;
 		w->M = M;
 
@@ -91,6 +255,39 @@ linear_molecule_get_tdse_job(molecule_t *molecule, molecule_tdse_worker_t *worke
   /* No jobs in the TODO state. */
   return -1;
 }
+
+static void
+linear_molecule_get_tdse_job_coef(const molecule_t *molecule, 
+				  const molecule_tdse_worker_t *worker,
+				  double *coef)
+{
+  linear_molecule_tdse_worker_t *w = 
+    (linear_molecule_tdse_worker_t *) worker;
+  int i;
+
+  /* Set all real and imaginary parts of the wavefunction coefficients
+     to zero. */ 
+  for (i = 0; i < 2 * molecule->get_ncoef(molecule); i++)
+    coef[i] = 0.0;
+		
+  /* And now set the real part of the (J, M) coefficient to 1. */
+  coef[JMarray_idx (w->J, w->M)] = 1.0; /* Im part is 0.0, set above. */
+
+  return;
+}
+
+static double
+linear_molecule_get_tdse_job_weight(const molecule_t *molecule, 
+				    const molecule_tdse_worker_t *worker)
+{
+  linear_molecule_t *mol = (linear_molecule_t *) molecule;
+  linear_molecule_tdse_worker_t *w = 
+    (linear_molecule_tdse_worker_t *) worker;
+  
+  return linear_molecule_boltzmann_statwt(mol, w->J);
+}
+
+
 
 molecule_tdse_worker_t * 
 linear_molecule_tdse_worker_ctor(const molecule_t *molecule)
@@ -104,7 +301,7 @@ linear_molecule_tdse_worker_ctor(const molecule_t *molecule)
       return NULL;
     }
 
-  worker->parent.state = TW_WAITING;
+  //  worker->parent.state = TW_WAITING;
 
   /* worker->parent = molecule_tdse_worker_ctor(); */
   /* if (worker->parent == NULL) */
@@ -135,8 +332,44 @@ linear_molecule_set_tdse_job_done (molecule_t *molecule,
     (linear_molecule_tdse_worker_t *) worker;
 
   m->job_status->set(m->job_status, w->J, w->M, TJ_DONE);
-  w->parent.state = TW_WAITING;
+  //w->parent.state = TW_WAITING;
 }
+
+#ifdef BUILD_WITH_MPI
+static int 
+linear_molecule_tdse_worker_mpi_send (const molecule_t *self, 
+				      const molecule_tdse_worker_t *worker,
+				      int dest, int tag, MPI_Comm comm)
+{
+  const linear_molecule_tdse_worker_t *w =
+    (linear_molecule_tdse_worker_t *) worker;
+  int ret;
+
+  /* The casts to (void *) here are because the MPI API doesn't
+     include the const qualifier, because academic programmers are
+     morons. So, we have to discard the const qualifier. This is
+     apparently fixed in the MPI 3 spec. */
+  ret = MPI_Send((void *) &(w->J), 1, MPI_INT, dest, tag, comm);
+  ret += MPI_Send((void *) &(w->M), 1, MPI_INT, dest, tag, comm);
+
+  return ret;
+}
+
+static int 
+linear_molecule_tdse_worker_mpi_recv (const molecule_t *self, 
+				      molecule_tdse_worker_t *worker,
+				      int dest, int tag, MPI_Comm comm)
+{
+  linear_molecule_tdse_worker_t *w =
+    (linear_molecule_tdse_worker_t *) worker;
+  int ret;
+
+  ret = MPI_Recv(&(w->J), 1, MPI_INT, dest, tag, comm, MPI_STATUS_IGNORE);
+  ret += MPI_Recv(&(w->M), 1, MPI_INT, dest, tag, comm, MPI_STATUS_IGNORE);
+
+  return ret;
+}
+#endif
 
 int
 linear_molecule_get_ncoef(const molecule_t * molecule)
@@ -328,12 +561,24 @@ linear_molecule_ctor(const double B, const int Jmax, const double T,
   molecule_dispatch_register((molecule_t *) mol,
 			     linear_molecule_tdse_rhs,
 			     linear_molecule_get_tdse_job,
+			     linear_molecule_get_tdse_job_coef,
+			     linear_molecule_get_tdse_job_weight,
 			     linear_molecule_set_tdse_job_done,
 			     linear_molecule_check_populations,
 			     linear_molecule_tdse_worker_ctor,
 			     linear_molecule_tdse_worker_dtor,
 			     linear_molecule_get_ncoef,
-			     linear_molecule_get_nexpval,
+			     linear_molecule_expval_ctor,
+			     linear_molecule_expval_dtor,
+			     linear_molecule_expval_calc,
+			     linear_molecule_expval_add_weighted,
+			     linear_molecule_expval_fwrite,
+#ifdef BUILD_WITH_MPI
+			     linear_molecule_expval_mpi_send,
+			     linear_molecule_expval_mpi_recv,
+			     linear_molecule_tdse_worker_mpi_send,
+			     linear_molecule_tdse_worker_mpi_recv,
+#endif
 			     linear_molecule_dispatched_dtor);
   mol->Jmax = Jmax;
   mol->poptol = poptol;
@@ -419,7 +664,7 @@ linear_molecule_dispatched_dtor(molecule_t * mol)
 /* This is a destructor function that aceepts a generic molecule_t,
    recasts and calls the true destructor - this is needed for dispatch. */
 { 
-linear_molecule_dtor ((linear_molecule_t *) mol); 
+  linear_molecule_dtor ((linear_molecule_t *) mol); 
 }
 
 void
@@ -434,4 +679,4 @@ linear_molecule_dtor(linear_molecule_t * mol)
   MEMORY_FREE (mol);
 }
 
-#undef __LM_NEXPVAL__
+

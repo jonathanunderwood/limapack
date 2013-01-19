@@ -95,7 +95,7 @@ main(int argc, char *argv[])
   if (lasers != NULL)
     laser_collection_dtor(lasers);
   if (molecule != NULL)
-    molecule_dtor (molecule);
+    molecule->dtor (molecule);
   if (cfg != NULL)
     {
       config_destroy (cfg);
