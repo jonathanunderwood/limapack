@@ -6,9 +6,41 @@
 #include <libconfig.h>
 
 #include "odesys.h"
+#include "molecule.h"
+#include "laser.h"
 #include "memory.h"
 #include "au.h"
+#include "slurp.h"
 
+typedef struct _odeparams
+{
+  molecule_t *molecule;
+  laser_collection_t *lasers;
+} odeparams_t;
+
+typedef struct _odesys_expval
+{
+  int npoints;
+  molecule_expval_t **data;
+} odesys_expval_t;
+
+/* Some sensible defaults for error calculation:
+   double eps_rel = 1.0e-6, eps_abs = 1.0e-6;
+   double y_scale = 1.0, dydx_scale = 1.0; */
+struct _odesys
+{
+  int npoints;
+  double tstart, tend, tstep;
+  double hstep, hinit;
+  double eps_rel, eps_abs, y_scale, dydx_scale;
+  gsl_odeiv_system system;
+  gsl_odeiv_step *step;
+  gsl_odeiv_control *control;
+  gsl_odeiv_evolve *evolve;
+  gsl_odeiv_step_type *step_type;
+  odeparams_t *params;
+  odesys_expval_t *expval;
+};
 
 static void
 odesys_expval_dtor(const odesys_t *ode, odesys_expval_t *expval)
@@ -62,7 +94,6 @@ odesys_expval_ctor(const odesys_t *ode)
 
   return expval;
 }
-
 
 static int
 odesys_expval_add_weighted(const odesys_t * ode, odesys_expval_t * a, 
@@ -191,8 +222,11 @@ odesys_expval_fwrite(const odesys_t *ode, const char *filename)
   return ret;
 }
 
-int
+static int
 odesys_cfg_parse(odesys_t *ode, const config_t * cfg)
+/* Simply parse the config object and return an odesys_t
+   object. However, this object is not fully initialized - odesys_init
+   would need to be called before use. */
 {
   double hstep, tstart, tend;
   config_setting_t *s;
@@ -228,8 +262,10 @@ odesys_cfg_parse(odesys_t *ode, const config_t * cfg)
   return 0;
 }
 
-odesys_t *
+static odesys_t *
 odesys_ctor()
+/* Simply allocate an odesys_t object. Subsequently odesys_cfg_parse and odesys_init
+   would need to be called. */
 {
   odesys_t * ode;
 
@@ -261,8 +297,8 @@ odesys_ctor()
   return ode;
 }
 
-odesys_t *
-odesys_cfg_parse_ctor(const config_t * cfg)
+static odesys_t *
+odesys_parse_from_config_ctor(const config_t * cfg)
 {
   odesys_t * ode = odesys_ctor();
 
@@ -273,8 +309,6 @@ odesys_cfg_parse_ctor(const config_t * cfg)
 
   return ode;
 }
-
-
 
 int
 odesys_init (odesys_t * ode, molecule_t * molecule, 
@@ -324,6 +358,93 @@ odesys_init (odesys_t * ode, molecule_t * molecule,
   return 0;
 }
 
+odesys_t *
+odesys_parse_cfg_from_buffer_ctor (const char *buffer)
+/* Parse the buffer and return an odesys_t object fully initialized
+   and ready to use. */
+{
+  config_t cfg;
+  odesys_t *odesys = NULL;
+  molecule_t *molecule = NULL; 
+  laser_collection_t *lasers = NULL;
+
+  /* Parse configurtion file into a libconfig config_t object. */ 
+  config_init (&cfg);
+
+  if (config_read_string (&cfg, buffer) == CONFIG_FALSE)
+    {
+      switch (config_error_type(&cfg))
+	{
+	case CONFIG_ERR_PARSE:
+	  fprintf(stderr, "Error in configuration at line %d\n",
+		  config_error_line(&cfg));
+	  fprintf(stderr, "Error was: \"%s\"\n", 
+	      config_error_text(&cfg));
+	  return NULL; 
+	default:
+	  fprintf(stderr, "Unknown error in parsing configuration.\n");
+	  return NULL;
+	}
+    }
+
+  /* Parse the config_t object. */
+  molecule = molecule_cfg_parse_ctor (&cfg);
+  if (molecule == NULL)
+    {
+      fprintf(stderr, 
+	      "Failed to parse molecule information from configuration file.\n");
+      config_destroy (&cfg);
+      return NULL; 
+    }
+
+  lasers = laser_collection_cfg_parse_ctor (&cfg);
+  if (lasers == NULL)
+    {
+      fprintf(stderr, 
+	      "Failed to parse laser information from configuration file.\n");
+      molecule->dtor(molecule);
+      config_destroy (&cfg);
+      return NULL;
+    }
+  
+  odesys = odesys_parse_from_config_ctor (&cfg);
+  if (odesys == NULL)
+    {
+      fprintf(stderr, 
+	      "Failed to initialize odesys.\n");
+      molecule->dtor (molecule);
+      laser_collection_dtor (lasers);
+      config_destroy (&cfg);
+      return NULL;
+    }
+
+  config_destroy (&cfg);
+  
+  odesys_init(odesys, molecule, lasers);
+
+  return odesys;
+}
+
+odesys_t *
+odesys_parse_cfg_from_file_ctor (const char *file, const int max_cfg_file_size)
+/* Parse the file and return an odesys_t object fully initialized
+   and ready to use. */
+{
+  char * buff;
+  int buff_size;
+
+  buff_size = slurp_file_to_buffer(file, &buff, max_cfg_file_size);
+  
+  if (buff_size < 0)
+    {
+      fprintf(stderr, "Failed to read in config file %s.\n",
+	      file);
+      return NULL;
+    }
+
+  return odesys_parse_cfg_from_buffer_ctor(buff);
+}
+
 void
 odesys_dtor (odesys_t * ode)
 {
@@ -333,7 +454,11 @@ odesys_dtor (odesys_t * ode)
   gsl_odeiv_evolve_free (ode->evolve);
   gsl_odeiv_control_free (ode->control);
   gsl_odeiv_step_free (ode->step);
+
+  ode->params->molecule->dtor(ode->params->molecule);
+  laser_collection_dtor (ode->params->lasers);
   MEMORY_FREE(ode->params);
+
   MEMORY_FREE(ode);
 }
 
@@ -458,6 +583,8 @@ odesys_tdse_propagate_simple (odesys_t *odesys)
 #define NEED_JOB_TAG 0
 #define NEW_JOB_TAG 1
 #define HAVE_DATA_TAG 2
+#define SLAVE_OOM_ERROR_TAG 3
+#define SLAVE_CALC_ERROR_TAG 4
 #define DIE_TAG 99
 
 #define DO_WORK_STATE 0
@@ -465,10 +592,14 @@ odesys_tdse_propagate_simple (odesys_t *odesys)
 
 int 
 odesys_tdse_propagate_mpi_master (odesys_t *odesys)
-/* MPI based master process function. */
+/* MPI based master process function. This function dispatches tDSE
+   jobs to MPI slaves, and takes care of collating the returned
+   expectation values. A negative return value indicates a problem,
+   and the caller should call MPI_Abort to clean up. The function will
+   return 0 otherwise. This function won't call MPI_Abort() or
+   MPI_Finalize. */
 {
   molecule_t *mol = odesys->params->molecule;
-  //  odesys_expval_t *expval = NULL;
   odesys_expval_t *buff = NULL;
   molecule_tdse_worker_t *worker = NULL;
   double weight;
@@ -477,18 +608,9 @@ odesys_tdse_propagate_mpi_master (odesys_t *odesys)
   worker = mol->tdse_worker_ctor(mol);
   if (worker == NULL)
     {
-      fprintf(stderr, "Failed to allocate worker.\n");
+      fprintf(stderr, "Failed to allocate tdse_worker.\n");
       return -1;
     }
-
-  /* Allocate storage for storing expectation values summed over all
-     initial states, weighted appropriately. */
-  /* expval = odesys_expval_ctor(odesys); */
-  /* if (expval == NULL) */
-  /*   { */
-  /*     mol->tdse_worker_dtor(mol, worker); */
-  /*     return -1; */
-  /*   } */
 
   /* Allocate storage for storing expectation values corresponding to
      individual initial states. */
@@ -559,7 +681,31 @@ odesys_tdse_propagate_mpi_master (odesys_t *odesys)
 
 	 mol->set_tdse_job_done(mol, worker);
 	 break;
+       case SLAVE_OOM_ERROR_TAG:
+	 /* A slave process wasn't able to allocate memory it
+	   needed. We'll let this slave process die, but won't kill
+	   off the calculation as other slaves may be functioning
+	   well. Since all memory allocation in the slave is done
+	   before starting jobs, no job has been lost at this point,
+	   we simply decrease nslaves by 1. */
+	 nslaves--;
+	 fprintf(stderr, 
+		 "Slave process %d couldn't allocate sufficient memory and quit.\n",
+		 stat.MPI_SOURCE);
+	 break;
+       case SLAVE_CALC_ERROR_TAG:
+	 /* A slave process encountered an error in the calculation
+	    such that it's not worth continuing the calculation at
+	    all. */
+	 fprintf(stderr, 
+		 "Slave process %d hit a fatal calculation error.\n",
+		 stat.MPI_SOURCE);
+	 mol->tdse_worker_dtor(mol, worker);
+	 odesys_expval_dtor(odesys, buff);
+	 return -1;
+	 break;
        }
+
     } while (nslaves > 0);
 
   odesys_expval_dtor(odesys, buff);
@@ -586,35 +732,40 @@ odesys_tdse_propagate_mpi_master (odesys_t *odesys)
 
 int 
 odesys_tdse_propagate_mpi_slave (odesys_t *odesys)
-/* Simple single threaded generic propagator which uses a single
-   worker. */
+/* MPI based slave process function. A negative return value
+   indicates a problem, and the caller should call MPI_Abort to clean
+   up. The function will return 0 otherwise. This function won't call
+   MPI_Abort() or MPI_Finalize. */
 {
   double *coef = NULL;
   molecule_tdse_worker_t *worker = NULL;
   molecule_t *mol = odesys->params->molecule;
   int state;
+  int max_host_length = 1024;
+  char host[max_host_length];
+  int rank;
+
+  MPI_Get_processor_name(host, &max_host_length);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   if (MEMORY_ALLOC_N(coef, 2 * mol->get_ncoef(mol)) < 0)
     {
       MEMORY_OOMERR;
+      fprintf(stderr, "Slave process %d on host %s failed to allocate memory for coef.\n",
+	      rank, host);
+      MPI_Send(NULL, 0, MPI_INT, 0, SLAVE_OOM_ERROR_TAG, MPI_COMM_WORLD);
       return -1;
     }
 
   worker = mol->tdse_worker_ctor(mol);
   if (worker == NULL)
     {
-      fprintf(stderr, "Failed to allocate worker.\n");
+      fprintf(stderr, "Slave process %d on host %s failed to allocate memory for worker.\n",
+	      rank, host);
+      MPI_Send(NULL, 0, MPI_INT, 0, SLAVE_OOM_ERROR_TAG, MPI_COMM_WORLD);
       MEMORY_FREE(coef);
       return -1;
     }
-
-  /* buff = odesys_expval_ctor(odesys); */
-  /* if (buff == NULL) */
-  /*   { */
-  /*     MEMORY_FREE(coef); */
-  /*     mol->tdse_worker_dtor(mol, worker); */
-  /*     return -1; */
-  /*   } */
 
   state = DO_WORK_STATE;
 
@@ -624,7 +775,6 @@ odesys_tdse_propagate_mpi_slave (odesys_t *odesys)
 
       /* Request job. */
       MPI_Send(NULL, 0, MPI_INT, 0, NEED_JOB_TAG, MPI_COMM_WORLD);
-
       MPI_Recv(NULL, 0, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, 
 	       &stat);
 
@@ -650,14 +800,14 @@ odesys_tdse_propagate_mpi_slave (odesys_t *odesys)
 	      if (mol->check_populations(mol, coef) != 0)
 		{
 		  fprintf(stderr, 
-			  "Populations building up unacceptably in TDSE propagation at time=%g ps. Exiting.\n", 
-			  AU_TO_PS(t1));
+			  "Process %d on host %s: Populations building up unacceptably in TDSE propagation at time=%g ps. Exiting.\n", 
+			  rank, host, AU_TO_PS(t1));
 		  MEMORY_FREE(coef);
 		  mol->tdse_worker_dtor(mol, worker);
-		  //		  odesys_expval_dtor(odesys, buff);
-
-		  // SEND A MESSAGE TO MASTER SAYING CALCULATION SHOULD DIE.
-		  //return -1;
+		  MEMORY_FREE(coef);
+		  mol->tdse_worker_dtor(mol, worker);
+		  MPI_Send(NULL, 0, MPI_INT, 0, SLAVE_CALC_ERROR_TAG, MPI_COMM_WORLD);
+		  return -1;
 		}
 	 
 	      /* Calculate expectation values at this time. */
@@ -685,7 +835,6 @@ odesys_tdse_propagate_mpi_slave (odesys_t *odesys)
   /* Cleanup. */
   MEMORY_FREE(coef);
   mol->tdse_worker_dtor(mol, worker);
-  //  odesys_expval_dtor(odesys, buff);
       
   return 0;
 }
@@ -693,7 +842,10 @@ odesys_tdse_propagate_mpi_slave (odesys_t *odesys)
 #undef NEED_JOB_TAG 
 #undef NEW_JOB_TAG
 #undef HAVE_DATA_TAG
+#undef SLAVE_OOM_ERROR_TAG
+#undef SLAVE_CALC_ERROR_TAG
 #undef DIE_TAG
+
 #undef DO_WORK_STATE
 #undef DIE_STATE
 
