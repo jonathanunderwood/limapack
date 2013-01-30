@@ -20,7 +20,7 @@ find_package(HDF5 REQUIRED)
 ## Compiler flags
 if(CMAKE_COMPILER_IS_GNUCC)
     set(CMAKE_C_FLAGS "-Wall -Werror -g -O2")
-    set(CMAKE_EXE_LINKER_FLAGS "-s")  ## Strip binary
+#    set(CMAKE_EXE_LINKER_FLAGS "-s")  ## Strip binary
 endif()
 
 ## Turn on tests

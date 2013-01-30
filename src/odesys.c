@@ -63,7 +63,7 @@ odesys_expval_dtor(const odesys_t *ode, odesys_expval_t *expval)
 static odesys_expval_t *
 odesys_expval_ctor(const odesys_t *ode)
 {
-  odesys_expval_t *expval;
+  odesys_expval_t * expval;
   int npoints = ode->npoints;
   molecule_t * molecule = ode->params->molecule;
   int i;
@@ -83,7 +83,8 @@ odesys_expval_ctor(const odesys_t *ode)
 
   for (i = 0; i < npoints; i++)
     {
-      expval->data[i] = molecule->expval_ctor(molecule);
+      printf("%d\n", i);fflush(stdout);
+      expval->data[i] = molecule->expval_ctor (molecule);
       if (expval->data[i] == NULL)
 	{
 	  fprintf(stderr, 
@@ -310,11 +311,19 @@ odesys_parse_from_config_ctor(const config_t * cfg)
   return ode;
 }
 
-int
+static int
 odesys_init (odesys_t * ode, molecule_t * molecule, 
-	     laser_collection_t *lasers)
+	     laser_collection_t * lasers)
 {
   int ncoef = molecule->get_ncoef(molecule);
+
+  /* Wrap up the molecule and lasers structures into a single
+     structure so we can pass a single pointer through the ODE
+     functions as required by GSL - avoids global variables. Do this
+     before odesys_expval_ctor, as this function will call
+     molecule->expval_ctor(). */
+  ode->params->molecule = molecule;
+  ode->params->lasers = lasers;
 
   ode->expval = odesys_expval_ctor(ode);
   if (ode->expval == NULL)
@@ -332,16 +341,11 @@ odesys_init (odesys_t * ode, molecule_t * molecule,
       fprintf(stderr, "odesys_cfg_parse has not been called, hstep < 0.\n");
       return -1;
     }
-  
+
+  /* Set up some things required by GSL. */
   ode->system.dimension = 2 * ncoef;
   ode->system.function = odesys_tdse_function;
   ode->system.jacobian = NULL;
-
-  /* Wrap up the molecule and lasers structures into a single
-     structure so we can pass a single pointer through the ODE
-     functions as required by GSL - avoids global variables. */
-  ode->params->molecule = molecule;
-  ode->params->lasers = lasers;
   ode->system.params = (void *)ode->params;
 
   /* Note that we hard-code the ODE step type here. The step type

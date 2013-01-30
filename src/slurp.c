@@ -25,12 +25,12 @@ slurp_file_to_buffer(const char *filename, char **buffer, const int max_file_siz
   if ((max_file_size > 0) && (file_status.st_size > max_file_size))
     {
       fprintf(stderr, "Config file %s too large, size = %d kB\n.", 
-	      filename, (int) (file_status.st_size/1024));
+	      filename, (int) (file_status.st_size / 1024));
       return -1;
     }
   
   buffer_size = file_status.st_size + 1; /* +1 for \0 at end */
-  if (MEMORY_ALLOC_N(*buffer, buffer_size) < 0) 
+  if (MEMORY_ALLOC_N((*buffer), buffer_size) < 0) 
     {
       MEMORY_OOMERR;
       return -1;
@@ -41,11 +41,11 @@ slurp_file_to_buffer(const char *filename, char **buffer, const int max_file_siz
     {
       fprintf(stderr, "Failed to open file %s. Exiting.", filename);
       perror("System error message:");
-      MEMORY_FREE(buffer);
+      MEMORY_FREE((*buffer));
       return -1;
     }
 
-  if (!fread(buffer, file_status.st_size, 1, fp)) 
+  if (!fread(*buffer, file_status.st_size, 1, fp)) 
     {
       fprintf(stderr, "Could not read file %s. Exiting.", filename);
       perror("System error message:");
