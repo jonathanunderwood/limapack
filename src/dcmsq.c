@@ -9,6 +9,57 @@
 #include "dmtxel.h"
 #include "dcmsq.h"
 #include "hdf5_gsl_complex.h"
+#include "memory.h"
+
+struct _dcmsq_mtxel
+{
+  double data[9];
+};
+
+struct _dcmsq_expval
+{
+  gsl_complex data[9];
+};
+
+dcmsq_expval_t *
+dcmsq_expval_ctor ()
+{
+  dcmsq_expval_t * dcmsq = NULL;
+
+  if (MEMORY_ALLOC (dcmsq) < 0)
+    {
+      MEMORY_OOMERR;
+      return NULL;
+    }
+
+  return dcmsq;
+}
+
+void
+dcmsq_expval_dtor (dcmsq_expval_t * dcmsq)
+{
+  MEMORY_FREE (dcmsq);
+}
+
+dcmsq_mtxel_t * 
+dcmsq_mtxel_ctor ()
+{
+  dcmsq_mtxel_t * dcmsq = NULL;
+
+  if (MEMORY_ALLOC (dcmsq) < 0)
+    {
+      MEMORY_OOMERR;
+      return NULL;
+    }
+
+  return dcmsq;
+}
+
+void 
+dcmsq_mtxel_dtor (dcmsq_mtxel_t * dcmsq)
+{
+  MEMORY_FREE (dcmsq);
+}
 
 void
 dcmsq_mtxel_calc (const int J, const int K, const int M,

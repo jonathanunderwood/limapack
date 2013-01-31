@@ -9,15 +9,17 @@ typedef enum dcmsq_axes
 { Xx, Xy, Xz, Yx, Yy, Yz, Zx, Zy, Zz } 
 dcmsq_axes_t;
 
-typedef struct _dcmsq_mtxel
-{
-  double data[9];
-} dcmsq_mtxel_t;
+typedef struct _dcmsq_mtxel dcmsq_mtxel_t;
+typedef struct _dcmsq_expval dcmsq_expval_t;
 
-typedef struct _dcmsq_expval
-{
-  gsl_complex data[9];
-} dcmsq_expval_t;
+dcmsq_mtxel_t * dcmsq_mtxel_ctor ();
+void dcmsq_mtxel_dtor (dcmsq_mtxel_t * dcmsq_mtxel);
+
+dcmsq_expval_t * dcmsq_expval_ctor ();
+void dcmsq_expval_dtor (dcmsq_expval_t * dcmsq_expval);
+
+
+
 
 void dcmsq_mtxel_calc (const int J, const int K, const int M,
 		       const int Jp, const int Kp, const int Mp, 

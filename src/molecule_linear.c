@@ -24,6 +24,11 @@
 #include "dcmsq.h"
 #include "au.h"
 
+typedef struct _linear_molecule_expval
+{
+  dcmsq_expval_t *dcmsq;
+} linear_molecule_expval_t;
+
 static inline double
 linear_molecule_energy(const linear_molecule_t *mol, const int J)
 {
@@ -42,11 +47,6 @@ linear_molecule_boltzmann_statwt(const linear_molecule_t * mol,
   return wt * exp (-E / mol->kT) / mol->partfn; 
 }
 
-typedef struct _linear_molecule_expval
-{
-  dcmsq_expval_t *dcmsq;
-} linear_molecule_expval_t;
-
 static molecule_expval_t *
 linear_molecule_expval_ctor (const molecule_t *molecule)
 {
@@ -59,7 +59,8 @@ linear_molecule_expval_ctor (const molecule_t *molecule)
       return NULL;
     }
 
-  if (MEMORY_ALLOC(expval->dcmsq) < 0)
+  expval->dcmsq = dcmsq_expval_ctor();
+  if (expval->dcmsq == NULL)
     {
       MEMORY_OOMERR;
       MEMORY_FREE(expval);
@@ -105,16 +106,21 @@ linear_molecule_expval_fwrite (const molecule_t *molecule,
   return ret;
 }
 
-static void 
+static int
 linear_molecule_expval_calc (const molecule_t *molecule, const double *coef, 
-			      const double t,
-			      molecule_expval_t *expvalue)
+			     const double t,
+			     molecule_expval_t *expvalue)
 {
   linear_molecule_t *mol = (linear_molecule_t *) molecule;
   linear_molecule_expval_t *expval = (linear_molecule_expval_t *) expvalue;
   const double *coef_r = coef;
   const double *coef_i = coef + mol->ncoef;
   int J;
+  dcmsq_mtxel_t *dcmsq_mtxel = dcmsq_mtxel_ctor();
+
+  if (dcmsq_mtxel == NULL)
+    return -1;
+
 
   linear_molecule_expval_zero(molecule, expval);
 
@@ -152,7 +158,7 @@ linear_molecule_expval_calc (const molecule_t *molecule, const double *coef,
 		  double Ep;
 		  int i2;
 		  gsl_complex Ap, c1, c2, c3;
-		  dcmsq_mtxel_t dcmsq_mtxel;
+
 
 		  if (abs (Mp) > Jp)
 		    continue;
@@ -169,12 +175,16 @@ linear_molecule_expval_calc (const molecule_t *molecule, const double *coef,
 		  c2 = gsl_complex_polar (1.0, (E - Ep) * t);
 		  c3 = gsl_complex_mul (c1, c2);
 
-		  dcmsq_mtxel_calc (J, 0, M, Jp, 0, Mp, &dcmsq_mtxel);
-		  dcmsq_expval_add_mtxel_weighted_complex (expval->dcmsq, &dcmsq_mtxel, c3);
+		  dcmsq_mtxel_calc (J, 0, M, Jp, 0, Mp, dcmsq_mtxel);
+		  dcmsq_expval_add_mtxel_weighted_complex (expval->dcmsq, dcmsq_mtxel, c3);
 		}
 	    }
 	}
     }
+
+  dcmsq_mtxel_dtor(dcmsq_mtxel);
+
+  return 0;
 }
 
 static void 

@@ -62,7 +62,7 @@ typedef struct _molecule
   int (*get_ncoef) (const struct _molecule *self);
   molecule_expval_t * (*expval_ctor) (const struct _molecule *self);
   void (*expval_dtor) (const struct _molecule *self, molecule_expval_t *expval);
-  void (*expval_calc)  (const struct _molecule *self, const double *coef, 
+  int (*expval_calc)  (const struct _molecule *self, const double *coef, 
 			const double t, molecule_expval_t *expval);
   void (*expval_add_weighted) (const struct _molecule *self, 
 			       molecule_expval_t *a, const molecule_expval_t *b,
@@ -118,7 +118,7 @@ molecule_dispatch_register(molecule_t * molecule,
 			   molecule_expval_t * (*expval_ctor) (const struct _molecule *self),
 			   void (*expval_dtor) (const struct _molecule *self, 
 						molecule_expval_t *expval),
-			   void (*expval_calc)  (const molecule_t *self, const double *coef,
+			   int (*expval_calc)  (const molecule_t *self, const double *coef,
 						 const double t, molecule_expval_t *expval),
 			   void (*expval_add_weighted) (const molecule_t *self, 
 							molecule_expval_t *a, 

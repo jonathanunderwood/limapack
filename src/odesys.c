@@ -83,7 +83,6 @@ odesys_expval_ctor(const odesys_t *ode)
 
   for (i = 0; i < npoints; i++)
     {
-      printf("%d\n", i);fflush(stdout);
       expval->data[i] = molecule->expval_ctor (molecule);
       if (expval->data[i] == NULL)
 	{
@@ -549,7 +548,7 @@ odesys_tdse_propagate_simple (odesys_t *odesys)
 	 if (mol->check_populations(mol, coef) != 0)
 	   {
 	     fprintf(stderr, 
-		     "Populations building up unacceptably in TDSE propagation at time=%g ps. Exiting.\n", 
+		     "Populations building up unacceptably in TDSE propagation at t=%g ps. Exiting.\n", 
 		     AU_TO_PS(t1));
 	     MEMORY_FREE(coef);
 	     mol->tdse_worker_dtor(mol, worker);
@@ -558,7 +557,15 @@ odesys_tdse_propagate_simple (odesys_t *odesys)
 	   }
 	 
 	 /* Calculate expectation values at this time. */
-	 mol->expval_calc(mol, coef, t1, buff);
+	 if (mol->expval_calc(mol, coef, t1, buff) < 0)
+	   {
+	     fprintf(stderr, "Error calculating expectation values at t= %g ps. Exiting.\n",
+		     AU_TO_PS(t1));
+	     MEMORY_FREE(coef);
+	     mol->tdse_worker_dtor(mol, worker);
+	     odesys_expval_dtor(odesys, buff);
+	     return -1;
+	   }
 
 	 /* Propagate to the next time point. */
 	 odesys_step(odesys, t1, t1 + odesys->tstep, coef);
@@ -808,14 +815,20 @@ odesys_tdse_propagate_mpi_slave (odesys_t *odesys)
 			  rank, host, AU_TO_PS(t1));
 		  MEMORY_FREE(coef);
 		  mol->tdse_worker_dtor(mol, worker);
-		  MEMORY_FREE(coef);
-		  mol->tdse_worker_dtor(mol, worker);
 		  MPI_Send(NULL, 0, MPI_INT, 0, SLAVE_CALC_ERROR_TAG, MPI_COMM_WORLD);
 		  return -1;
 		}
 	 
 	      /* Calculate expectation values at this time. */
-	      mol->expval_calc(mol, coef, t1, odesys->expval);
+	      if (mol->expval_calc(mol, coef, t1, odesys->expval) < 0)
+		{
+		  fprintf(stderr, "Error calculating expectation values at t= %g ps. Exiting.\n",
+			  AU_TO_PS(t1));
+		  MEMORY_FREE(coef);
+		  mol->tdse_worker_dtor(mol, worker);
+		  MPI_Send(NULL, 0, MPI_INT, 0, SLAVE_CALC_ERROR_TAG, MPI_COMM_WORLD);
+		  return -1;
+		}
 
 	      /* Propagate to the next time point. */
 	      odesys_step(odesys, t1, t2, coef);
