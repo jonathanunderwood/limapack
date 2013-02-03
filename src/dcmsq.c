@@ -152,7 +152,8 @@ void dcmsq_expval_add_weighted (dcmsq_expval_t *a,
   return;
 }
 
-void dcmsq_expval_zero(dcmsq_expval_t *dcmsq)
+void 
+dcmsq_expval_zero(dcmsq_expval_t *dcmsq)
 {
   int i;
   gsl_complex zero = gsl_complex_rect (0.0, 0.0);

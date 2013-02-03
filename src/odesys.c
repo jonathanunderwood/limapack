@@ -18,15 +18,18 @@ typedef struct _odeparams
   laser_collection_t *lasers;
 } odeparams_t;
 
+/* This structure is for storing expectation value data for each time
+   step. data will be allocated to be an array of pointers to
+   molecule_expval_t structures and will have dimension npoints. */
 typedef struct _odesys_expval
 {
   int npoints;
   molecule_expval_t **data;
 } odesys_expval_t;
 
-/* Some sensible defaults for error calculation:
-   double eps_rel = 1.0e-6, eps_abs = 1.0e-6;
-   double y_scale = 1.0, dydx_scale = 1.0; */
+/* Nb. Some sensible defaults for error calculation: double eps_rel =
+   1.0e-6, eps_abs = 1.0e-6; double y_scale = 1.0, dydx_scale =
+   1.0; */
 struct _odesys
 {
   int npoints;
@@ -83,7 +86,16 @@ odesys_expval_ctor(const odesys_t *ode)
 
   for (i = 0; i < npoints; i++)
     {
+      /* if (MEMORY_ALLOC (expval->data[i]) < 0) */
+      /* 	{ */
+      /* 	  MEMORY_OOMERR; */
+      /* 	  MEMORY_FREE (expval->data); */
+      /* 	  MEMORY_FREE(expval); */
+      /* 	  return NULL; */
+      /* 	} */
+
       expval->data[i] = molecule->expval_ctor (molecule);
+
       if (expval->data[i] == NULL)
 	{
 	  fprintf(stderr, 
@@ -91,6 +103,8 @@ odesys_expval_ctor(const odesys_t *ode)
 	  odesys_expval_dtor (ode, expval);
 	}
     }
+  
+  expval->npoints = npoints;
 
   return expval;
 }
@@ -557,9 +571,9 @@ odesys_tdse_propagate_simple (odesys_t *odesys)
 	   }
 	 
 	 /* Calculate expectation values at this time. */
-	 if (mol->expval_calc(mol, coef, t1, buff) < 0)
+	 if (mol->expval_calc(mol, coef, t1, buff->data[i]) < 0)
 	   {
-	     fprintf(stderr, "Error calculating expectation values at t= %g ps. Exiting.\n",
+	     fprintf(stderr, "Error calculating expectation values at t=%g ps. Exiting.\n",
 		     AU_TO_PS(t1));
 	     MEMORY_FREE(coef);
 	     mol->tdse_worker_dtor(mol, worker);
@@ -820,7 +834,7 @@ odesys_tdse_propagate_mpi_slave (odesys_t *odesys)
 		}
 	 
 	      /* Calculate expectation values at this time. */
-	      if (mol->expval_calc(mol, coef, t1, odesys->expval) < 0)
+	      if (mol->expval_calc(mol, coef, t1, odesys->expval->data[i]) < 0)
 		{
 		  fprintf(stderr, "Error calculating expectation values at t= %g ps. Exiting.\n",
 			  AU_TO_PS(t1));

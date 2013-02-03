@@ -13,8 +13,6 @@
 #include "molecule_linear.h"
 #include "memory.h"
 
-
-
 void
 molecule_dispatch_register(molecule_t * molecule,
 			   int (*tdse_rhs) (const molecule_t *mol, 

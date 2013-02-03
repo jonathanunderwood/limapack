@@ -29,6 +29,41 @@ typedef struct _linear_molecule_expval
   dcmsq_expval_t *dcmsq;
 } linear_molecule_expval_t;
 
+
+static molecule_expval_t *
+linear_molecule_expval_ctor (const molecule_t *molecule)
+{
+  //  linear_molecule_t *mol = (linear_molecule_t *) molecule;
+  linear_molecule_expval_t *expval = NULL;
+
+  if (MEMORY_ALLOC(expval) < 0)
+    {
+      MEMORY_OOMERR;
+      return NULL;
+    }
+
+  expval->dcmsq = dcmsq_expval_ctor();
+  if (expval->dcmsq == NULL)
+    {
+      MEMORY_FREE(expval);
+      return NULL;
+    }
+
+  return (molecule_expval_t *) expval;
+}
+
+static void 
+linear_molecule_expval_dtor (const molecule_t *molecule, molecule_expval_t *expval)
+/* Note at present first argument is unused. Kept for generality and future use. */
+{
+  //  linear_molecule_t *mol = (linear_molecule_t *) molecule; 
+  linear_molecule_expval_t *exp = (linear_molecule_expval_t *) expval;
+
+  dcmsq_expval_dtor (exp->dcmsq);
+  MEMORY_FREE(exp);
+}
+
+
 static inline double
 linear_molecule_energy(const linear_molecule_t *mol, const int J)
 {
@@ -47,52 +82,6 @@ linear_molecule_boltzmann_statwt(const linear_molecule_t * mol,
   return wt * exp (-E / mol->kT) / mol->partfn; 
 }
 
-static molecule_expval_t *
-linear_molecule_expval_ctor (const molecule_t *molecule)
-{
-  //  linear_molecule_t *mol = (linear_molecule_t *) molecule;
-  linear_molecule_expval_t *expval = NULL;
-
-  if (MEMORY_ALLOC(expval) < 0)
-    {
-      MEMORY_OOMERR;
-      return NULL;
-    }
-
-  expval->dcmsq = dcmsq_expval_ctor();
-  if (expval->dcmsq == NULL)
-    {
-      MEMORY_OOMERR;
-      MEMORY_FREE(expval);
-      return NULL;
-    }
-
-  return expval;
-}
-
-static void 
-linear_molecule_expval_dtor (const molecule_t *molecule, molecule_expval_t *expval)
-/* Note at present first argument is unused. Kept for generality and future use. */
-{
-  //  linear_molecule_t *mol = (linear_molecule_t *) molecule; 
-  linear_molecule_expval_t *exp = (linear_molecule_expval_t *) expval;
-
-  MEMORY_FREE(exp->dcmsq);
-  MEMORY_FREE(exp);
-}
-
-static void linear_molecule_expval_zero(const molecule_t *molecule, 
-					molecule_expval_t *expval)
-/* Set all expectation values to zero. Note at present first argument
-   is unused - kept for generality and future use. Also, we could
-   directly pass a correctly typed expval pointer, but we'll stick
-   with the generic for now and recast.*/
-{
-  //  linear_molecule_t *mol = (linear_molecule_t *) molecule;
-  linear_molecule_expval_t *exp = (linear_molecule_expval_t *) expval;
-  dcmsq_expval_zero(exp->dcmsq);
-}
-
 static int
 linear_molecule_expval_fwrite (const molecule_t *molecule,
 			       const molecule_expval_t *expval,
@@ -106,10 +95,18 @@ linear_molecule_expval_fwrite (const molecule_t *molecule,
   return ret;
 }
 
+static void 
+linear_molecule_expval_zero(const linear_molecule_t *molecule, 
+			    linear_molecule_expval_t *expval)
+/* Set all expectation values to zero. */
+{
+  dcmsq_expval_zero(expval->dcmsq);
+}
+
 static int
 linear_molecule_expval_calc (const molecule_t *molecule, const double *coef, 
-			     const double t,
-			     molecule_expval_t *expvalue)
+			     const double t, molecule_expval_t *expvalue)
+/* Callback function used to calculate all needed expectation values. */
 {
   linear_molecule_t *mol = (linear_molecule_t *) molecule;
   linear_molecule_expval_t *expval = (linear_molecule_expval_t *) expvalue;
@@ -121,8 +118,8 @@ linear_molecule_expval_calc (const molecule_t *molecule, const double *coef,
   if (dcmsq_mtxel == NULL)
     return -1;
 
-
-  linear_molecule_expval_zero(molecule, expval);
+  /* Initialize all expectation values to zero. */
+  linear_molecule_expval_zero(mol, expval);
 
   for (J = 0; J <= mol->Jmax; J++)
     {

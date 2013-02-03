@@ -90,7 +90,7 @@ laser_polzn_drot1 (const int p, const int q, const double phi,
   gsl_complex phiterm = gsl_complex_polar (1.0, -p * phi);
   gsl_complex chiterm = gsl_complex_polar (1.0, -q * chi);
   gsl_complex eterm = gsl_complex_mul (phiterm, chiterm);
-  double d;
+  double d = 0.0;
   // TODO: add checking of p and q values as being in range -1..1
 
   if (p == -1)
