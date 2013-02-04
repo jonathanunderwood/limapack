@@ -31,14 +31,15 @@ typedef enum _molecule_tdse_job_state {
    it communicates back to the parent with (a) what job it has
    completed; and (b) what it calculated (i.e. expectation values
    etc). */
-typedef void molecule_tdse_worker_t;
-
+//typedef void molecule_tdse_worker_t;
+typedef struct _molecule_tdse_worker_t molecule_tdse_worker_t;
 //molecule_tdse_worker_t *molecule_tdse_worker_ctor();
 //void molecule_tdse_worker_dtor(molecule_tdse_worker_t * worker);
 
 /* Each molecular model will need to define functions to allocate
    storage of expectation values. */
-typedef void molecule_expval_t;
+//typedef void molecule_expval_t;
+typedef struct _molecule_expval molecule_expval_t;
 
 typedef struct _molecule 
 {

@@ -670,6 +670,7 @@ odesys_tdse_propagate_mpi_master (odesys_t *odesys)
 
      switch (stat.MPI_TAG)
        {
+	 int i;
        case NEED_JOB_TAG:
 	 /* Slave is waiting for work so get a new job and send
 	    that. If there are no jobs left, tell the slave to
@@ -698,8 +699,10 @@ odesys_tdse_propagate_mpi_master (odesys_t *odesys)
 	    expectation values weighted appropriately. */
 	 mol->tdse_worker_mpi_recv(mol, worker, stat.MPI_SOURCE,
 				   HAVE_DATA_TAG, MPI_COMM_WORLD);
-	 mol->expval_mpi_recv(mol, buff, stat.MPI_SOURCE,
-			      HAVE_DATA_TAG, MPI_COMM_WORLD);
+
+	 for (i = 0; i < odesys->npoints; i++)
+	   mol->expval_mpi_recv(mol, buff->data[i], stat.MPI_SOURCE,
+				HAVE_DATA_TAG, MPI_COMM_WORLD);
 
 	 weight = mol->get_tdse_job_weight(mol, worker);
 	 odesys_expval_add_weighted(odesys, odesys->expval, buff, weight);
@@ -853,8 +856,9 @@ odesys_tdse_propagate_mpi_slave (odesys_t *odesys)
 		   MPI_COMM_WORLD);
 	  mol->tdse_worker_mpi_send(mol, worker, stat.MPI_SOURCE, 
 				    HAVE_DATA_TAG, MPI_COMM_WORLD);
-	  mol->expval_mpi_send(mol, odesys->expval, stat.MPI_SOURCE, 
-			       HAVE_DATA_TAG, MPI_COMM_WORLD);
+	  for (i = 0; i < odesys->npoints; i++)
+	    mol->expval_mpi_send(mol, odesys->expval->data[i], stat.MPI_SOURCE, 
+				 HAVE_DATA_TAG, MPI_COMM_WORLD);
 	  break;
 
 	case (DIE_TAG):
