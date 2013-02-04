@@ -228,6 +228,11 @@ linear_molecule_expval_mpi_recv(const molecule_t *molecule,
 }
 #endif
 
+/* These macros define TDSE job states for the following functions. */
+#define __TODO 0
+#define __STARTED 1
+#define __DONE 2
+
 static int
 linear_molecule_get_tdse_job(molecule_t *molecule, molecule_tdse_worker_t *worker)
 {
@@ -239,18 +244,18 @@ linear_molecule_get_tdse_job(molecule_t *molecule, molecule_tdse_worker_t *worke
   for (J = 0; J <= mol->Jmax; J++)
     for (M = -J; M <= J; M++)
       {
-	molecule_tdse_job_state_t status = 
+	int status = 
 	  mol->job_status->get(mol->job_status, J, M);
-	if (status == TJ_TODO)
+	if (status == __TODO)
 	  {
 	    double wt = linear_molecule_boltzmann_statwt(mol, J);
 
 	    fprintf(stdout, "J: %d M: %d wt: %g\n", J, M, wt); 
 	    if (wt < mol->poptol) /* Population in this state negligible */
-		mol->job_status->set(mol->job_status, J, M, TJ_DONE);
+		mol->job_status->set(mol->job_status, J, M, __DONE);
 	    else
 	      {
-		mol->job_status->set(mol->job_status, J, M, TJ_STARTED);
+		mol->job_status->set(mol->job_status, J, M, __STARTED);
 		w->J = J;
 		w->M = M;
 
@@ -262,6 +267,23 @@ linear_molecule_get_tdse_job(molecule_t *molecule, molecule_tdse_worker_t *worke
   /* No jobs in the TODO state. */
   return -1;
 }
+
+void
+linear_molecule_set_tdse_job_done (molecule_t *molecule, 
+				   molecule_tdse_worker_t *worker)
+{
+  linear_molecule_t *m = 
+    (linear_molecule_t *) molecule;
+  linear_molecule_tdse_worker_t *w = 
+    (linear_molecule_tdse_worker_t *) worker;
+
+  m->job_status->set(m->job_status, w->J, w->M, __DONE);
+  //w->parent.state = TW_WAITING;
+}
+
+#undef __TODO
+#undef __STARTED
+#undef __DONE
 
 static void
 linear_molecule_get_tdse_job_coef(const molecule_t *molecule, 
@@ -329,18 +351,6 @@ linear_molecule_tdse_worker_dtor(const molecule_t *molecule,
   MEMORY_FREE(worker);
 }
 
-void
-linear_molecule_set_tdse_job_done (molecule_t *molecule, 
-				   molecule_tdse_worker_t *worker)
-{
-  linear_molecule_t *m = 
-    (linear_molecule_t *) molecule;
-  linear_molecule_tdse_worker_t *w = 
-    (linear_molecule_tdse_worker_t *) worker;
-
-  m->job_status->set(m->job_status, w->J, w->M, TJ_DONE);
-  //w->parent.state = TW_WAITING;
-}
 
 #ifdef BUILD_WITH_MPI
 static int 

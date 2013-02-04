@@ -9,36 +9,22 @@
 
 #include "laser.h"
 
-
 typedef enum _molecule_type {
   MT_LINROT,
   MT_SYMROT,
   MT_ASYMROT
 } molecule_type_t;
 
-/* typedef enum _molecule_tdse_worker_state { */
-/*   TW_UNITIALIZED, TW_WAITING, TW_WORKING, TW_DEAD */
-/* } molecule_tdse_worker_state_t; */
-
-typedef enum _molecule_tdse_job_state {
-  TJ_TODO, TJ_STARTED, TJ_DONE
-} molecule_tdse_job_state_t;
-
-/* Infrastructure for tracking worker process states. These will need
-   to be "sub-classed" for each specific molecule type. The
-   sub-classed structure is used for the worker thread/process to keep
-   track of what job it is working on. When a worker finishes a job,
-   it communicates back to the parent with (a) what job it has
-   completed; and (b) what it calculated (i.e. expectation values
-   etc). */
-//typedef void molecule_tdse_worker_t;
+/* The following two typedefs are actually incomplete - nowhere do we
+   define the corresponding structures. Rather, for each molecular
+   model we define specific structs for that model and recast as
+   necessary. We elect to use incomplete definitions rather than void
+   here to give us some level of type checking. As such they are
+   "placeholder" structs. The first represents a struct that will keep
+   track of what specific TDSE propagation job a process is working
+   on. The second represents a struct that is used to store
+   expectation values for each time step. */ 
 typedef struct _molecule_tdse_worker_t molecule_tdse_worker_t;
-//molecule_tdse_worker_t *molecule_tdse_worker_ctor();
-//void molecule_tdse_worker_dtor(molecule_tdse_worker_t * worker);
-
-/* Each molecular model will need to define functions to allocate
-   storage of expectation values. */
-//typedef void molecule_expval_t;
 typedef struct _molecule_expval molecule_expval_t;
 
 typedef struct _molecule 
