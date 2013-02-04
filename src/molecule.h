@@ -131,47 +131,6 @@ molecule_dispatch_register(molecule_t * molecule,
 			   void (*dtor)(molecule_t *self)
 			   );
 
-/* molecule_t *molecule_ctor(int (*tdse_rhs) (const molecule_t *mol,  */
-/* 					   const laser_collection_t *lasers,  */
-/* 					   const double t, const double *coef, double *deriv), */
-/* 			  int (*get_tdse_job) (molecule_t *self,  */
-/* 					       molecule_tdse_worker_t *worker, */
-/* 					       double *coef, double *weight), */
-/* 			  void (*set_tdse_job_done) (molecule_t *self,  */
-/* 						     molecule_tdse_worker_t *worker), */
-/* 			  int (*check_populations)(const molecule_t *self,  */
-/* 						   const double * coef), */
-/* 			  molecule_tdse_worker_t * (*tdse_worker_ctor) (const molecule_t *self), */
-/* 			  void (*tdse_worker_dtor)(const molecule_t *self,  */
-/* 						   molecule_tdse_worker_t * worker), */
-/* 			  int (*get_ncoef) (const molecule_t *self), */
-/* 			  molecule_expval_t * (*expval_ctor) (const molecule_t *self), */
-/* 			  void (*expval_dtor) (const molecule_t *self, molecule_expval_t *expval), */
-/* 			  void (*expval_calc)  (const molecule_t *self, const double *coef, */
-/* 						const double t, molecule_expval_t *expval), */
-/* 			  void (*expval_add_weighted) (const molecule_t *self,  */
-/* 						       molecule_expval_t *a,  */
-/* 						       const molecule_expval_t *b, */
-/* 						       const double weight), */
-/* #ifdef BUILD_WITH_MPI */
-/* 			  int (*expval_mpi_send) (const molecule_t *self,  */
-/* 						  const molecule_expval_t *molecule,  */
-/* 						  int dest, int tag, MPI_Comm comm), */
-/* 			  int (*expval_mpi_recv) (const molecule_t *self,  */
-/* 						  molecule_expval_t *molecule,  */
-/* 						  int dest, int tag, MPI_Comm comm), */
-/* 			  int (*tdse_worker_mpi_send) (const molecule_t *self,  */
-/* 						       const molecule_tdse_worker_t *worker, */
-/* 						       int dest, int tag, MPI_Comm comm); */
-/* 			  int (*tdse_worker_mpi_recv) (const molecule_t *self,  */
-/* 						       molecule_tdse_worker_t *worker, */
-/* 						       int dest, int tag, MPI_Comm comm); */
-/* #endif */
-/* 			  void (*dtor)(molecule_t *self) */
-/* 			  ); */
-
-/* void molecule_dtor(molecule_t * molecule); */
-
 /* Generic configuration parser - this calls the molecule type
    specific parsers as required. */
 molecule_t * molecule_cfg_parse_ctor (const config_t * cfg);
