@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/stat.h>
 
 #include "odesys.h"
 
@@ -9,11 +10,18 @@ int
 main(int argc, char *argv[])
 {
   odesys_t *odesys = NULL;
+  struct stat file_status;
 
   if (argc < 2)
     {
       fprintf (stderr, "Useage: %s <parameter file> <output file>.\n",
                argv[0]);
+      exit (1);
+    }
+  
+  if (stat(argv[2], &file_status) == 0)
+    {
+      fprintf (stderr, "Output filename already exists. Exiting.\n");
       exit (1);
     }
 

@@ -44,7 +44,7 @@ molecule_dispatch_register(molecule_t * molecule,
 							const double weight),
 			   int (*expval_fwrite) (const molecule_t *molecule,
 						 const molecule_expval_t *expvalue,
-						 const hid_t location),
+						 const hid_t *location),
 #ifdef BUILD_WITH_MPI
 			   int (*expval_mpi_send) (const molecule_t *self, 
 						   const molecule_expval_t *molecule, 

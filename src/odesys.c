@@ -154,23 +154,25 @@ odesys_tdse_function (const double t, const double coefs[],
 int
 odesys_expval_fwrite(const odesys_t *ode, const char *filename)
 /* Write out all expectation values to a file in HDF5 format. This
-   assumes the file specified by "filename" doesn't already exist. If
-   it does, this function will return -1, and should be called again
-   with a different filename. */
+   assumes the file specified by "filename" doesn't already exist. */
 {
   hid_t file_id, group_id;
   int ret = 0;
-  const char *root_group = "/expval";
+  size_t group_name_size = 64; /* Initial guess. */
+  const char *root_group = "/expval/";
   char *group_name = NULL;
   molecule_t *mol = ode->params->molecule;
   int i;
 
   file_id = H5Fcreate(filename, H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT);
 
-  /* Files to open the file, probably because it already exists. */
+  /* Failed to open the file, probably because it already exists. */
   if (file_id < 0)
-    return -1;
-
+    {
+      fprintf(stderr, "Failed to open file %s.\n", filename);
+      return -1;
+    }
+  
   group_id = H5Gcreate(file_id, root_group, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
   if (group_id < 0) /* Failed to create group. */
@@ -182,7 +184,7 @@ odesys_expval_fwrite(const odesys_t *ode, const char *filename)
 
   /* Create a group for each time step, and write out expvals for that
      time step. */
-  if (MEMORY_ALLOC_N(group_name, 48) < 0)
+  if (MEMORY_ALLOC_N(group_name, group_name_size) < 0)
     {
       MEMORY_OOMERR;
       ret = -1;
@@ -194,26 +196,24 @@ odesys_expval_fwrite(const odesys_t *ode, const char *filename)
       hid_t gid;
       int newlength;
 
-      newlength = sprintf(group_name, "%s/%s%d", root_group, "t", i);
-      if (newlength > 0)
+      newlength = snprintf(group_name, group_name_size,
+			   "%s%s%d", root_group, "t", i);
+      if (newlength > group_name_size)
 	{
 	  /* The group name for some reason failed to fit in the
 	     group_name buffer, so try to repeat with an increased
 	     size. If that still fails, give up. */
-	  if (MEMORY_REALLOC_N(group_name, newlength) < 0)
+
+	  group_name_size = newlength + 1; /* +1 for terminating \0. */
+	  if (MEMORY_REALLOC_N(group_name, group_name_size) < 0)
 	    {
 	      MEMORY_OOMERR;
 	      ret = -1;
 	      goto exit;
 	    }
-
-	  if (sprintf(group_name, "%s%s%d", "/expval/", "t", i))
-	    {
-	      fprintf(stderr, "Failed to create group_name.\n");
-	      ret = -1;
-	      goto exit;
-	    }
+	  snprintf(group_name, group_name_size, "%s%s%d", "/expval/", "t", i);
 	}
+
       /* Create a group for this time step. */
       gid = H5Gcreate(file_id, group_name, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
       if (gid < 0)
@@ -224,7 +224,7 @@ odesys_expval_fwrite(const odesys_t *ode, const char *filename)
 	}
 
       /* Write out expval data for this time step. */
-      mol->expval_fwrite(mol, ode->expval->data[i], gid);
+      mol->expval_fwrite(mol, ode->expval->data[i], &gid);
     }
 
  exit:

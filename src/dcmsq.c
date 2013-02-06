@@ -189,7 +189,7 @@ dcmsq_expval_mpi_recv(dcmsq_expval_t *expval,
 #endif
 
 int
-dcmsq_fwrite(const dcmsq_expval_t *expval, const hid_t location)
+dcmsq_fwrite(const dcmsq_expval_t *expval, const hid_t *location)
 {
   hid_t cmplx_type;
   int status;
@@ -202,17 +202,36 @@ dcmsq_fwrite(const dcmsq_expval_t *expval, const hid_t location)
 
   /* Define and hdf5 compound data type to represent a gsl_complex type. */
   cmplx_type = hdf5_gsl_complex_type_create();
+  if (cmplx_type < 0)
+    {
+      fprintf(stderr, "%s %d: Failed to create HDF5 complex type.\n", __func__, __LINE__);
+      return -1;
+    }
 
   /* Create dataspace. */
   dataspace_id = H5Screate_simple(rank, dim, dim);
+  if (dataspace_id < 0)
+    {
+      fprintf(stderr, "%s %d: Failed to create dataspace.\n", __func__, __LINE__);
+      return -1;
+    }
 
   /* Create dataset. */
-  dataset_id = H5Dcreate(location, "/dcmsq", cmplx_type, dataspace_id, 
+  dataset_id = H5Dcreate(*location, "/dcmsq", cmplx_type, dataspace_id, 
 			 H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  if (dataset_id < 0)
+    {
+      fprintf(stderr, "%s %d: Failed to create dataset.\n", __func__, __LINE__);
+      return -1;
+    }
   
   /* Write to dataset. */
   status = H5Dwrite (dataset_id, cmplx_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, expval);
-
+  if (status)
+    {
+      fprintf(stderr, "%s %d: Failed to write to dataset.\n", __func__, __LINE__);
+      return -1;
+    }
   /* Cleanup. */
   status += H5Dclose (dataset_id);
   status += H5Sclose (dataspace_id);

@@ -32,7 +32,7 @@ void dcmsq_expval_add_weighted (dcmsq_expval_t *expval_a,
 
 void dcmsq_expval_zero(dcmsq_expval_t *dcmsq);
 
-int dcmsq_fwrite(const dcmsq_expval_t *expval, const hid_t location);
+int dcmsq_fwrite(const dcmsq_expval_t *expval, const hid_t *location);
 
 #ifdef BUILD_WITH_MPI
 #include <mpi.h>

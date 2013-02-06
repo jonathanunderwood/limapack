@@ -85,7 +85,7 @@ linear_molecule_boltzmann_statwt(const linear_molecule_t * mol,
 static int
 linear_molecule_expval_fwrite (const molecule_t *molecule,
 			       const molecule_expval_t *expval,
-			       const hid_t location)
+			       const hid_t *location)
 {
   // TODO: write out data. Each type of expval as it's own path.
   // Eg. /expval/dcmsq
