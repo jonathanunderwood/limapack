@@ -88,68 +88,6 @@ molecule_dispatch_register(molecule_t * molecule,
   return;
 }
 
-/* molecule_t * */
-/* molecule_ctor(int (*tdse_rhs) (const molecule_t *mol, const laser_collection_t *lasers,  */
-/* 			       const double t, const double *coef, double *deriv), */
-/* 	      int (*get_tdse_job) (molecule_t *self,  */
-/* 				   molecule_tdse_worker_t *worker, */
-/* 				   double *coef, double *weight), */
-/* 	      void (*set_tdse_job_done) (molecule_t *self,  */
-/* 					 molecule_tdse_worker_t *worker), */
-/* 	      int (*check_populations)(const molecule_t *self,  */
-/* 				       const double * coef), */
-/* 	      molecule_tdse_worker_t * (*tdse_worker_ctor) (const molecule_t *self), */
-/* 	      void (*tdse_worker_dtor)(const molecule_t *self,  */
-/* 				       molecule_tdse_worker_t * worker), */
-/* 	      int (*get_ncoef) (const molecule_t *self), */
-/* 	      molecule_expval_t * (*expval_ctor) (const molecule_t *self), */
-/* 	      void (*expval_dtor) (const molecule_t *self, molecule_expval_t *expval), */
-/* 	      void (*expval_calc)  (const molecule_t *self, const double *coef, */
-/* 				    const double t, molecule_expval_t *expval), */
-/* 	      void (*expval_add_weighted) (const molecule_t *self,  */
-/* 					   molecule_expval_t *a,  */
-/* 					   const molecule_expval_t *b, */
-/* 					   const double weight), */
-/* #ifdef BUILD_WITH_MPI */
-/* 	      int (*expval_mpi_send) (const molecule_t *self,  */
-/* 				      const molecule_expval_t *molecule,  */
-/* 				      int dest, int tag, MPI_Comm comm), */
-/* 	      int (*expval_mpi_recv) (const molecule_t *self,  */
-/* 				      molecule_expval_t *molecule,  */
-/* 				      int dest, int tag, MPI_Comm comm), */
-/* 			   int (*tdse_worker_mpi_send) (const molecule_t *self,  */
-/* 							const molecule_tdse_worker_t *worker, */
-/* 							int dest, int tag, MPI_Comm comm); */
-/* 			   int (*tdse_worker_mpi_recv) (const molecule_t *self,  */
-/* 							molecule_tdse_worker_t *worker, */
-/* 							int dest, int tag, MPI_Comm comm); */
-/* #endif */
-/* 	      void (*dtor)(molecule_t *self) */
-/* 	      ) */
-/* { */
-/*   molecule_t *molecule; */
-
-/*   if (MEMORY_ALLOC(molecule) < 0) */
-/*     { */
-/*       MEMORY_OOMERR; */
-/*       return NULL; */
-/*     } */
-
-/*   /\* Register dispatch functions. *\/ */
-/*   molecule_dispatch_register(molecule, tdse_rhs, get_tdse_job,  */
-/* 			     set_tdse_job_done, check_populations, */
-/* 			     tdse_worker_ctor, tdse_worker_dtor, */
-/* 			     get_ncoef, expval_ctor, expval_dtor,  */
-/* 			     expval_calc, expval_add_weighted, dtor); */
-/*   return molecule; */
-/* } */
-
-/* void */
-/* molecule_dtor (molecule_t * molecule) */
-/* { */
-/*   molecule->dtor(molecule); */
-/* } */
-
 molecule_t *
 molecule_cfg_parse_ctor (const config_t * cfg)
 {
@@ -185,23 +123,3 @@ molecule_cfg_parse_ctor (const config_t * cfg)
     }
 }
 
-/* molecule_tdse_worker_t *  */
-/* molecule_tdse_worker_ctor() */
-/* { */
-/*   molecule_tdse_worker_t * worker; */
-  
-/*   if (MEMORY_ALLOC(worker) < 0) */
-/*     { */
-/*       MEMORY_OOMERR; */
-/*       return NULL; */
-/*     } */
-
-/*   worker->state = TW_WAITING; */
-
-/*   return worker; */
-/* } */
-
-/* void molecule_tdse_worker_dtor(molecule_tdse_worker_t * worker) */
-/* { */
-/*   MEMORY_FREE(worker); */
-/* } */
