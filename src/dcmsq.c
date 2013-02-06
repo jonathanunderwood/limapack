@@ -209,22 +209,24 @@ dcmsq_fwrite(const dcmsq_expval_t *expval, const hid_t *location)
     }
 
   /* Create dataspace. */
-  dataspace_id = H5Screate_simple(rank, dim, dim);
+  dataspace_id = H5Screate_simple(rank, dim, NULL);
   if (dataspace_id < 0)
     {
       fprintf(stderr, "%s %d: Failed to create dataspace.\n", __func__, __LINE__);
       return -1;
     }
 
-  /* Create dataset. */
-  dataset_id = H5Dcreate(*location, "/dcmsq", cmplx_type, dataspace_id, 
+  /* Create dataset. Note that we don't have a leading "/" as this
+     would force the data set into the root of the file, whereas
+     location may refer to a group. */
+  dataset_id = H5Dcreate(*location, "dcmsq", cmplx_type, dataspace_id, 
 			 H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   if (dataset_id < 0)
     {
       fprintf(stderr, "%s %d: Failed to create dataset.\n", __func__, __LINE__);
       return -1;
     }
-  
+
   /* Write to dataset. */
   status = H5Dwrite (dataset_id, cmplx_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, expval);
   if (status)
