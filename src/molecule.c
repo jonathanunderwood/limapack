@@ -10,8 +10,11 @@
 #endif
 
 #include "molecule.h"
-#include "molecule_linear.h"
 #include "memory.h"
+
+/* Include all molecular model specific header files here only so we
+   can properly parse the config file. */
+#include "molecule_linear.h"
 
 void
 molecule_dispatch_register(molecule_t * molecule,
@@ -62,7 +65,6 @@ molecule_dispatch_register(molecule_t * molecule,
 			   void (*dtor)(molecule_t *self)
 			   )
 {
-  /* Register dispatch functions. */
   molecule->tdse_rhs = tdse_rhs;
   molecule->get_tdse_job = get_tdse_job;
   molecule->set_tdse_job_done = set_tdse_job_done;

@@ -27,10 +27,29 @@ typedef enum _molecule_type {
 typedef struct _molecule_tdse_worker_t molecule_tdse_worker_t;
 typedef struct _molecule_expval molecule_expval_t;
 
+/* The molecule_t struct is simply a long list of call back function
+   pointers that each molecular model needs to register. Each
+   molecular model should implement its own specific structure with a
+   molecule_t struct as its first member:
+
+   struct my_new_molecule_model_t
+   {
+     molecule_t parent;
+     int some_param;
+     double some_other_param;
+     ...
+   };
+   
+   As such, a my_new_molecule_model_t pointer can be recast as a
+   molecule_t pointer at any point. In this way we can write general
+   functions for all molecular models as long as they provide
+   conformant callback functions in their struct for later
+   dispatch. See eg. odesys.c. We provide a function here for
+   registering the callback functions as well,, and so each model
+   should make use of this. */
+  
 typedef struct _molecule 
 {
-  /* Functions which need to be registered by the different molecule
-     types. */
   int (*tdse_rhs) (const struct _molecule *self, const laser_collection_t *lasers, 
 		   const double t, const double *coef, double *deriv);
   int (*get_tdse_job) (struct _molecule *self, molecule_tdse_worker_t *worker);
