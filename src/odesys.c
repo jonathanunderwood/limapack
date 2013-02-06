@@ -449,6 +449,7 @@ odesys_parse_cfg_from_file_ctor (const char *file, const int max_cfg_file_size)
 {
   char * buff;
   int buff_size;
+  odesys_t *odesys;
 
   buff_size = slurp_file_to_buffer(file, &buff, max_cfg_file_size);
   
@@ -459,7 +460,11 @@ odesys_parse_cfg_from_file_ctor (const char *file, const int max_cfg_file_size)
       return NULL;
     }
 
-  return odesys_parse_cfg_from_buffer_ctor(buff);
+  odesys = odesys_parse_cfg_from_buffer_ctor(buff);
+
+  MEMORY_FREE (buff);
+
+  return odesys;
 }
 
 void
