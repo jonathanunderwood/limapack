@@ -57,7 +57,7 @@ slurp_file_to_buffer(const char *filename, char **buffer, const int max_file_siz
   /* Add terminal null - fread doesn't. */
   (*buffer)[buffer_size - 1] = '\0';
 
-  return buffer_size;
+  return buffer_size + 1;
 }
 
 /* For posterity, commented out below is an alternative strategy which

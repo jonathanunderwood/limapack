@@ -63,8 +63,8 @@ main(int argc, char *argv[])
 	}
     }
 
-  MPI_Bcast(&cfg_file_buff, cfg_file_buff_size, MPI_CHAR, 0, MPI_COMM_WORLD);
-    
+  MPI_Bcast(cfg_file_buff, cfg_file_buff_size, MPI_CHAR, 0, MPI_COMM_WORLD);
+
   /* Parse config file. */
   odesys = odesys_parse_cfg_from_buffer_ctor(cfg_file_buff);
   if (odesys == NULL)
