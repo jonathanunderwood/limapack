@@ -234,7 +234,8 @@ linear_molecule_expval_mpi_recv(const molecule_t *molecule,
 #define __DONE 2
 
 static int
-linear_molecule_get_tdse_job(molecule_t *molecule, molecule_tdse_worker_t *worker)
+linear_molecule_get_tdse_job(molecule_t *molecule, 
+			     molecule_tdse_worker_t *worker)
 {
   linear_molecule_t *mol = (linear_molecule_t *) molecule;
   linear_molecule_tdse_worker_t *w = 
@@ -250,7 +251,7 @@ linear_molecule_get_tdse_job(molecule_t *molecule, molecule_tdse_worker_t *worke
 	  {
 	    double wt = linear_molecule_boltzmann_statwt(mol, J);
 
-	    fprintf(stdout, "J: %d M: %d wt: %g\n", J, M, wt); 
+	    //	    fprintf(stdout, "J: %d M: %d wt: %g\n", J, M, wt); 
 	    if (wt < mol->poptol) /* Population in this state negligible */
 		mol->job_status->set(mol->job_status, J, M, __DONE);
 	    else

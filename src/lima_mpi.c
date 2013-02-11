@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/stat.h>
 
 #include <mpi.h>
 
@@ -19,24 +20,36 @@ main(int argc, char *argv[])
   odesys_t *odesys = NULL;
   int cfg_file_buff_size;
   char *cfg_file_buff;
-
-  if (argc < 2)
-    {
-      fprintf (stderr, "Useage: %s <parameter file> <output file>.\n",
-               argv[0]);
-      exit (1);
-    }
+  struct stat file_status;
 
   /* Initialize MPI */
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Get_processor_name(host, &host_length);
 
-  fprintf(stdout, "<%d> Host: %s\n", rank, host);
+  fprintf(stdout, "<%d::%s Initiliasing.>\n", rank, host);
 
-  /* Read config file if we're the master MPI process. */
+  if (argc < 2)
+    {
+      if (rank == 0)
+	fprintf (stderr, "Useage: %s <parameter file> <output file>.\n",
+		 argv[0]);
+      MPI_Finalize();
+      exit (-1);
+    }
+
+  /* Read config file if we're the master MPI process and distribute
+     to other processes - this means that the config file does not
+     need to be available on slave nodes. */
   if (rank == 0) /* Master process. */
     {
+      if (stat(argv[2], &file_status) == 0)
+	{
+	  fprintf (stderr, "Output filename already exists. Exiting.\n");
+	  MPI_Abort (MPI_COMM_WORLD, -1);
+	  exit (-1);
+	}
+
       /* Master process reads in file to a buffer and then broadcasts it. */
       cfg_file_buff_size = slurp_file_to_buffer(argv[1], &cfg_file_buff, 
 						MAX_CFG_FILE_SIZE);
@@ -46,6 +59,7 @@ main(int argc, char *argv[])
 	  fprintf(stderr, "Failed to read config file %s. Exiting.\n",
 		  argv[1]);
 	  MPI_Abort (MPI_COMM_WORLD, -1);
+	  exit (-1);
 	}
     }
 
@@ -83,8 +97,8 @@ main(int argc, char *argv[])
       if (odesys_tdse_propagate_mpi_master(odesys) < 0)
 	{
 	  fprintf(stderr, 
-		 "odesys_tdse_propagate_mpi_master did not return cleanly, aborting.\n");
-	  MPI_Abort(MPI_COMM_WORLD, -1);
+		 "odesys_tdse_propagate_mpi_master did not return cleanly.\n");
+	  ret = -1;
 	}
       else
 	{
@@ -92,6 +106,7 @@ main(int argc, char *argv[])
 	  odesys_expval_fwrite(odesys, outfile);
 	  ret = 0;
 	}
+      fprintf(stdout, "<%d::%s> Master exiting.\n", rank, host);
     }
   else /* We are a slave child process. */
     {
@@ -103,14 +118,14 @@ main(int argc, char *argv[])
 	}
       else
 	{
+	  fprintf(stdout, "<%d::%s> Slave exiting.\n", rank, host);
 	  ret = 0;
 	}
     }
 
   odesys_dtor (odesys);
   
-  if (rank == 0)
-	MPI_Finalize ();
+  MPI_Finalize ();
 
   exit (ret);
 }

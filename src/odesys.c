@@ -743,8 +743,8 @@ odesys_tdse_propagate_mpi_master (odesys_t *odesys)
 
   odesys_expval_dtor(odesys, buff);
 
-  /* At this point there should be no jobs remaining, and no slave
-     processes running. However, we'll do a sanity check. */
+  /* At this point there should be no jobs remaining. However, we'll
+     do a sanity check. */
   if (mol->get_tdse_job(mol, worker) == 0)
     {
       fprintf(stderr, "All slaves have exited but there are still jobs left to do.\n");
@@ -752,13 +752,6 @@ odesys_tdse_propagate_mpi_master (odesys_t *odesys)
       return -1;
     }
       
-  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-  if (nprocs > 1)
-    {
-      fprintf(stderr, "Slave processes still running when they shouldn't be!\n");
-      return -1;
-    }
-
   mol->tdse_worker_dtor(mol, worker);
   return 0;
 }

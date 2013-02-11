@@ -29,7 +29,7 @@ slurp_file_to_buffer(const char *filename, char **buffer, const int max_file_siz
       return -1;
     }
   
-  buffer_size = file_status.st_size + 1; /* +1 for \0 at end */
+  buffer_size = file_status.st_size ;//+ 1; /* +1 for \0 at end */
   if (MEMORY_ALLOC_N((*buffer), buffer_size) < 0) 
     {
       MEMORY_OOMERR;
@@ -55,9 +55,9 @@ slurp_file_to_buffer(const char *filename, char **buffer, const int max_file_siz
   fclose (fp);
   
   /* Add terminal null - fread doesn't. */
-  (*buffer)[buffer_size - 1] = '\0';
+  //  (*buffer)[buffer_size - 1] = '\0';
 
-  return buffer_size + 1;
+  return buffer_size;
 }
 
 /* For posterity, commented out below is an alternative strategy which
