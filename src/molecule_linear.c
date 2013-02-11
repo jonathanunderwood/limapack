@@ -24,6 +24,26 @@
 #include "dcmsq.h"
 #include "au.h"
 
+struct _linear_molecule
+{
+  molecule_t parent;
+  double B;
+  double kT, partfn;
+  double coefmin;
+  double poptol;
+  double oddwt, evenwt;
+  polarizability_t * alpha;
+  int Jmax;
+  int ncoef;
+  int nexpval;
+  JMarray_int_t * job_status;
+};
+
+typedef struct _linear_molecule_tdse_worker
+{
+  int J, M;
+} linear_molecule_tdse_worker_t;
+
 typedef struct _linear_molecule_expval
 {
   dcmsq_expval_t *dcmsq;
