@@ -11,6 +11,9 @@
 #include <gsl/gsl_errno.h>
 #define ODESYS_SUCCESS GSL_SUCCESS
 
+/* Maximum length of a host name. */
+#define ODESYS_MAX_HOST_NAME_LENGTH 1024
+
 typedef struct _odesys odesys_t;
 
 odesys_t * odesys_parse_cfg_from_file_ctor (const char *file, 

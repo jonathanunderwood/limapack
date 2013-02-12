@@ -15,16 +15,31 @@ typedef enum _molecule_type {
   MT_ASYMROT
 } molecule_type_t;
 
-/* The following two typedefs are actually incomplete - nowhere do we
+/* This struct will keep track of what specific TDSE propagation job a
+   process is working on. It will need to be "sub-classed" by each
+   molecular model which will implement a struct with a
+   molecule_tdse_worker_t as its first member:
+
+   typedef struct _my_molecule_tdse_worker
+   {
+     molecule_tdse_worker_t parent;
+     int J, K, M, a;
+   } my_molecule_tdse_worker_t;
+
+*/
+#define MOLECULE_TDSE_WORKER_DESCRIPTION_LENGTH 128
+typedef struct _molecule_tdse_worker
+{
+  char description[MOLECULE_TDSE_WORKER_DESCRIPTION_LENGTH];
+} molecule_tdse_worker_t;
+
+/* The following typedefs are actually incomplete - nowhere do we
    define the corresponding structures. Rather, for each molecular
    model we define specific structs for that model and recast as
    necessary. We elect to use incomplete definitions rather than void
    here to give us some level of type checking. As such they are
-   "placeholder" structs. The first represents a struct that will keep
-   track of what specific TDSE propagation job a process is working
-   on. The second represents a struct that is used to store
-   expectation values for each time step. */ 
-typedef struct _molecule_tdse_worker_t molecule_tdse_worker_t;
+   "placeholder" structs.  The first represents a struct that is used
+   to store expectation values for each time step. */ 
 typedef struct _molecule_expval molecule_expval_t;
 
 /* The molecule_t struct is simply a long list of call back function
@@ -54,8 +69,8 @@ typedef struct _molecule
 		   const double t, const double *coef, double *deriv);
   int (*get_tdse_job) (struct _molecule *self, molecule_tdse_worker_t *worker);
   void (*get_tdse_job_coef) (const struct _molecule *self, 
-			    const molecule_tdse_worker_t *worker,
-			    double *coef);
+			     const molecule_tdse_worker_t *worker,
+			     double *coef);
   double (*get_tdse_job_weight) (const struct _molecule *self, 
 				 const molecule_tdse_worker_t *worker);
   void (*set_tdse_job_done) (struct _molecule *self, 

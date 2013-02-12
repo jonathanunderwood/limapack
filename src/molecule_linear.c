@@ -41,6 +41,7 @@ struct _linear_molecule
 
 typedef struct _linear_molecule_tdse_worker
 {
+  molecule_tdse_worker_t parent;
   int J, M;
 } linear_molecule_tdse_worker_t;
 
@@ -279,7 +280,9 @@ linear_molecule_get_tdse_job(molecule_t *molecule,
 		mol->job_status->set(mol->job_status, J, M, __STARTED);
 		w->J = J;
 		w->M = M;
-
+		snprintf(w->parent.description, 
+			 MOLECULE_TDSE_WORKER_DESCRIPTION_LENGTH, 
+			 "J: %d M: %d", J, M);
 		return 0;
 	      }
 	  }
@@ -387,8 +390,11 @@ linear_molecule_tdse_worker_mpi_send (const molecule_t *self,
      include the const qualifier, because academic programmers are
      morons. So, we have to discard the const qualifier. This is
      apparently fixed in the MPI 3 spec. */
-  ret = MPI_Send((void *) &(w->J), 1, MPI_INT, dest, tag, comm);
-  ret += MPI_Send((void *) &(w->M), 1, MPI_INT, dest, tag, comm);
+  ret = MPI_Send ((void *) &(w->parent.description), 
+		  MOLECULE_TDSE_WORKER_DESCRIPTION_LENGTH, 
+		  MPI_CHAR, dest, tag, comm);
+  ret += MPI_Send ((void *) &(w->J), 1, MPI_INT, dest, tag, comm);
+  ret += MPI_Send ((void *) &(w->M), 1, MPI_INT, dest, tag, comm);
 
   return ret;
 }
@@ -402,8 +408,11 @@ linear_molecule_tdse_worker_mpi_recv (const molecule_t *self,
     (linear_molecule_tdse_worker_t *) worker;
   int ret;
 
-  ret = MPI_Recv(&(w->J), 1, MPI_INT, dest, tag, comm, MPI_STATUS_IGNORE);
-  ret += MPI_Recv(&(w->M), 1, MPI_INT, dest, tag, comm, MPI_STATUS_IGNORE);
+  ret = MPI_Recv ((void *) &(w->parent.description), 
+		  MOLECULE_TDSE_WORKER_DESCRIPTION_LENGTH, 
+		  MPI_CHAR, dest, tag, comm, MPI_STATUS_IGNORE);
+  ret += MPI_Recv (&(w->J), 1, MPI_INT, dest, tag, comm, MPI_STATUS_IGNORE);
+  ret += MPI_Recv (&(w->M), 1, MPI_INT, dest, tag, comm, MPI_STATUS_IGNORE);
 
   return ret;
 }

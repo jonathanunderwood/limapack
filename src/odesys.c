@@ -633,7 +633,17 @@ odesys_tdse_propagate_mpi_master (odesys_t *odesys)
   odesys_expval_t *buff = NULL;
   molecule_tdse_worker_t *worker = NULL;
   double weight;
-  int nprocs, nslaves;
+  int nprocs, nslaves, rank;
+  int max_host_length = ODESYS_MAX_HOST_NAME_LENGTH;
+  char host[max_host_length];
+  
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Get_processor_name(host, &max_host_length);
+  if (rank != 0)
+    {
+      fprintf (stderr, "%s not running as master process.\n", __func__);
+      return (-1);
+    }
 
   worker = mol->tdse_worker_ctor(mol);
   if (worker == NULL)
@@ -686,6 +696,8 @@ odesys_tdse_propagate_mpi_master (odesys_t *odesys)
 		      NEW_JOB_TAG, MPI_COMM_WORLD);
 	     mol->tdse_worker_mpi_send(mol, worker, stat.MPI_SOURCE, 
 				       NEW_JOB_TAG, MPI_COMM_WORLD);
+	     fprintf(stdout, "<%d::%s> Job sent to slave process %d => %s\n",
+		     rank, host, stat.MPI_SOURCE, worker->description);
 	   }
 	 else 
 	   {
@@ -767,7 +779,7 @@ odesys_tdse_propagate_mpi_slave (odesys_t *odesys)
   molecule_tdse_worker_t *worker = NULL;
   molecule_t *mol = odesys->params->molecule;
   int state;
-  int max_host_length = 1024;
+  int max_host_length = ODESYS_MAX_HOST_NAME_LENGTH;
   char host[max_host_length];
   int rank;
 
@@ -786,7 +798,7 @@ odesys_tdse_propagate_mpi_slave (odesys_t *odesys)
   worker = mol->tdse_worker_ctor(mol);
   if (worker == NULL)
     {
-      fprintf(stderr, "Slave process %d on host %s failed to allocate memory for worker.\n",
+      fprintf(stderr, "<%d::%s> Failed to allocate memory for worker.\n",
 	      rank, host);
       MPI_Send(NULL, 0, MPI_INT, 0, SLAVE_OOM_ERROR_TAG, MPI_COMM_WORLD);
       MEMORY_FREE(coef);
@@ -812,6 +824,9 @@ odesys_tdse_propagate_mpi_slave (odesys_t *odesys)
 	case (NEW_JOB_TAG):
 	  mol->tdse_worker_mpi_recv(mol, worker, stat.MPI_SOURCE, 
 				    NEW_JOB_TAG, MPI_COMM_WORLD);
+	  fprintf(stdout, "<%d::%s> Job received => %s\n",
+		  rank, host, worker->description);
+
 	  mol->get_tdse_job_coef(mol, worker, coef);
 	  odesys_reset(odesys);
 
@@ -826,7 +841,7 @@ odesys_tdse_propagate_mpi_slave (odesys_t *odesys)
 	      if (mol->check_populations(mol, coef) != 0)
 		{
 		  fprintf(stderr, 
-			  "Process %d on host %s: Populations building up unacceptably in TDSE propagation at time=%g ps. Exiting.\n", 
+			  "<%d::%s> Populations building up unacceptably in TDSE propagation at time=%g ps.\n", 
 			  rank, host, AU_TO_PS(t1));
 		  MEMORY_FREE(coef);
 		  mol->tdse_worker_dtor(mol, worker);
@@ -837,8 +852,8 @@ odesys_tdse_propagate_mpi_slave (odesys_t *odesys)
 	      /* Calculate expectation values at this time. */
 	      if (mol->expval_calc(mol, coef, t1, odesys->expval->data[i]) < 0)
 		{
-		  fprintf(stderr, "Error calculating expectation values at t= %g ps. Exiting.\n",
-			  AU_TO_PS(t1));
+		  fprintf(stderr, "<%d::%s> Error calculating expectation values at t= %g ps.\n",
+			  rank, host, AU_TO_PS(t1));
 		  MEMORY_FREE(coef);
 		  mol->tdse_worker_dtor(mol, worker);
 		  MPI_Send(NULL, 0, MPI_INT, 0, SLAVE_CALC_ERROR_TAG, MPI_COMM_WORLD);

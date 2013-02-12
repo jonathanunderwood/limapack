@@ -9,13 +9,12 @@
 #include "memory.h"
 
 #define MAX_CFG_FILE_SIZE (64*1024) // 64 kB
-#define MAX_HOSTNAME_SIZE 1024
 
 int
 main(int argc, char *argv[])
 {
   int ret = 0;
-  char host[MAX_HOSTNAME_SIZE];
+  char host[ODESYS_MAX_HOST_NAME_LENGTH];
   int host_length, rank;
   odesys_t *odesys = NULL;
   int cfg_file_buff_size;
@@ -27,7 +26,7 @@ main(int argc, char *argv[])
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Get_processor_name(host, &host_length);
 
-  fprintf(stdout, "<%d::%s Initiliasing.>\n", rank, host);
+  fprintf(stdout, "<%d::%s> Initiliasing.\n", rank, host);
 
   if (argc < 2)
     {
@@ -56,8 +55,8 @@ main(int argc, char *argv[])
       
       if (cfg_file_buff_size < 0)
 	{
-	  fprintf(stderr, "Failed to read config file %s. Exiting.\n",
-		  argv[1]);
+	  fprintf(stderr, "<%d::%s> Failed to read config file %s. Exiting.\n",
+		  rank, host, argv[1]);
 	  MPI_Abort (MPI_COMM_WORLD, -1);
 	  exit (-1);
 	}
@@ -71,8 +70,8 @@ main(int argc, char *argv[])
       if (MEMORY_ALLOC_N(cfg_file_buff, cfg_file_buff_size) < 0)
 	{
 	  MEMORY_OOMERR;
-	  fprintf (stderr, "Failed to allocate storage for cfg_file_buff on %s. Slave exiting.\n",
-		   host);
+	  fprintf (stderr, "<%d::%s> Failed to allocate storage for cfg_file_buff. Slave exiting.\n",
+		   rank, host);
 	  MPI_Abort (MPI_COMM_WORLD, -1);
 	}
     }
@@ -83,7 +82,7 @@ main(int argc, char *argv[])
   odesys = odesys_parse_cfg_from_buffer_ctor(cfg_file_buff);
   if (odesys == NULL)
     {
-      fprintf (stderr, "Failed to parse config file %s.\n", argv[1]);
+      fprintf (stderr, "<%d::%s> Failed to parse config file %s.\n", rank, host, argv[1]);
       MEMORY_FREE (cfg_file_buff);
       MPI_Abort (MPI_COMM_WORLD, -1);
     }
@@ -97,7 +96,8 @@ main(int argc, char *argv[])
       if (odesys_tdse_propagate_mpi_master(odesys) < 0)
 	{
 	  fprintf(stderr, 
-		 "odesys_tdse_propagate_mpi_master did not return cleanly.\n");
+		  "<%d::%s> odesys_tdse_propagate_mpi_master did not return cleanly.\n",
+		  rank, host);
 	  ret = -1;
 	}
       else
@@ -113,7 +113,8 @@ main(int argc, char *argv[])
       if (odesys_tdse_propagate_mpi_slave(odesys) < 0)
 	{
 	  fprintf(stderr, 
-		  "odesys_tdse_propagate_mpi_slave failed to complete cleanly.\n");
+		  "<%d::%s> odesys_tdse_propagate_mpi_slave failed to complete cleanly.\n",
+		  rank, host);
 	  ret = -1;
 	}
       else
