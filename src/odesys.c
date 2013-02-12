@@ -86,14 +86,6 @@ odesys_expval_ctor(const odesys_t *ode)
 
   for (i = 0; i < npoints; i++)
     {
-      /* if (MEMORY_ALLOC (expval->data[i]) < 0) */
-      /* 	{ */
-      /* 	  MEMORY_OOMERR; */
-      /* 	  MEMORY_FREE (expval->data); */
-      /* 	  MEMORY_FREE(expval); */
-      /* 	  return NULL; */
-      /* 	} */
-
       expval->data[i] = molecule->expval_ctor (molecule);
 
       if (expval->data[i] == NULL)
@@ -522,7 +514,6 @@ odesys_tdse_propagate_simple (odesys_t *odesys)
   double weight;
   molecule_tdse_worker_t *worker = NULL;
   molecule_t *mol = odesys->params->molecule;
-  //  laser_collection_t *las = odesys->params->lasers;
   odesys_expval_t *buff = NULL;
 
   if (MEMORY_ALLOC_N(coef, 2 * mol->get_ncoef(mol)) < 0)
