@@ -12,6 +12,8 @@
 #include "au.h"
 #include "slurp.h"
 
+/* Structure to wrap up the molecule and laser parameters to pass to
+   the TDSE solver. */
 typedef struct _odeparams
 {
   molecule_t *molecule;
@@ -27,9 +29,12 @@ typedef struct _odesys_expval
   molecule_expval_t **data;
 } odesys_expval_t;
 
-/* Nb. Some sensible defaults for error calculation: double eps_rel =
+/* General ODE system container. Contains all parameters, and stuff
+   needed for GSL.
+
+   Nb. Some sensible defaults for error calculation: double eps_rel =
    1.0e-6, eps_abs = 1.0e-6; double y_scale = 1.0, dydx_scale =
-   1.0; */
+   1.0. */
 struct _odesys
 {
   int npoints;
