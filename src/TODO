@@ -1,1 +1,4 @@
 o Use proper data hiding in many modules eg. polarizability.c, j(k)marray.c etc
+o Convert all macros for converting to/from atomic units to inline functions
+o Run indent over all files to clean up formatting
+o Sort out what functions would be usefully exported and build a shared library
