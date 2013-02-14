@@ -151,12 +151,16 @@ odesys_tdse_function (const double t, const double coefs[],
 int
 odesys_expval_fwrite(const odesys_t *ode, const char *filename)
 /* Write out all expectation values to a file in HDF5 format. This
-   assumes the file specified by "filename" doesn't already exist. */
+   assumes the file specified by "filename" doesn't already exist. All
+   expectation values are written below a HDF5 group "/expval", with
+   each time point being its own group below /expval i.e. /expval/t0,
+   expval/t1 etc. The actual time (in ps) of each time point is stored
+   as an HDF5 attribute of the /expval/tN group. */
 {
-  hid_t file_id, group_id;
+  hid_t file_id, root_group_id, dataspace_id;
   int ret = 0;
-  size_t group_name_size = 64; /* Initial guess. */
-  const char *root_group = "/expval/";
+  const char *root_group = "/expval";
+  size_t group_name_size = 5; /* Initial guess. */
   char *group_name = NULL;
   molecule_t *mol = ode->params->molecule;
   int i;
@@ -166,69 +170,114 @@ odesys_expval_fwrite(const odesys_t *ode, const char *filename)
   /* Failed to open the file, probably because it already exists. */
   if (file_id < 0)
     {
-      fprintf(stderr, "Failed to open file %s.\n", filename);
+      fprintf(stderr, "%s %d: Failed to open file %s.\n", 
+	      __func__, __LINE__, filename);
       return -1;
     }
   
-  group_id = H5Gcreate(file_id, root_group, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  /* Create the root group /expval. */
+  root_group_id = H5Gcreate(file_id, root_group, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-  if (group_id < 0) /* Failed to create group. */
+  if (root_group_id < 0) /* Failed to create group. */
     {
-      fprintf(stderr, "Failed to create hdf5 group in output file: %s.\n", root_group);
-      ret = -1;
-      goto exit;
+      fprintf(stderr, "%s %d: Failed to create hdf5 root group in output file: %s.\n", 
+	      __func__, __LINE__, filename);
+      H5Fclose (file_id);
+      return -1;
+    }
+
+
+  /* Create a dataspace that'll be used for the time attribute. */
+  dataspace_id = H5Screate(H5S_SCALAR);
+  if (dataspace_id < 0)
+    {
+      fprintf(stderr, "%s %d: Failed to create data space for time attribute.\n",
+	      __func__, __LINE__);
+      H5Gclose (root_group_id);
+      H5Fclose (file_id); 
+      return -1;
+    }
+
+  /* Allocate a string buffer large enough to hold the group name for
+     each time point. In the following loops we take care to grow this buffer if needed. */
+  if (MEMORY_ALLOC_N(group_name, group_name_size) < 0) 
+    { 
+      MEMORY_OOMERR; 
+      H5Sclose (dataspace_id);
+      H5Gclose (root_group_id);
+      H5Fclose (file_id); 
+      return -1; 
     }
 
   /* Create a group for each time step, and write out expvals for that
      time step. */
-  if (MEMORY_ALLOC_N(group_name, group_name_size) < 0)
-    {
-      MEMORY_OOMERR;
-      ret = -1;
-      goto exit;
-    }
-
   for (i = 0; i < ode->npoints; i++)
     {
-      hid_t gid;
+      hid_t attr_id, group_id;
       int newlength;
+      double dt = AU_TO_PS (ode->tstart + i * ode->tstep);
 
       newlength = snprintf(group_name, group_name_size,
-			   "%s%s%d", root_group, "t", i);
+			   "%s%d", "t", i);
       if (newlength > group_name_size)
 	{
 	  /* The group name for some reason failed to fit in the
 	     group_name buffer, so try to repeat with an increased
 	     size. If that still fails, give up. */
-
 	  group_name_size = newlength + 1; /* +1 for terminating \0. */
 	  if (MEMORY_REALLOC_N(group_name, group_name_size) < 0)
 	    {
 	      MEMORY_OOMERR;
 	      ret = -1;
-	      goto exit;
+	      break;
 	    }
-	  snprintf(group_name, group_name_size, "%s%s%d", "/expval/", "t", i);
+	  snprintf(group_name, group_name_size, "%s%d", "t", i);
 	}
 
       /* Create a group for this time step. */
-      gid = H5Gcreate(file_id, group_name, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-      if (gid < 0)
+      group_id = H5Gcreate(root_group_id, group_name, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+      if (group_id < 0)
 	{
-	  fprintf(stderr, "Failed to create hdf5 group in output file: %s.\n", group_name);
+	  fprintf(stderr, "%s %d: Failed to create hdf5 group in output file: %s.\n", 
+		  __func__, __LINE__, group_name);
 	  ret = -1;
-	  goto exit;
+	  break;
 	}
 
+      /* Store the Delta T value as an attribute of this group. */
+      attr_id = H5Acreate (group_id, "time", H5T_NATIVE_DOUBLE, dataspace_id,
+			   H5P_DEFAULT, H5P_DEFAULT);
+      if (attr_id < 0)
+	{
+	  fprintf(stderr, "%s %d: Failed to create Delta T attribute.\n",
+		  __func__, __LINE__);
+	  H5Gclose (group_id);
+	  ret= -1;
+	  break;
+	}
+
+      if (H5Awrite (attr_id, H5T_NATIVE_DOUBLE, &dt) != 0)
+	{
+	  fprintf(stderr, "%s %d: Failed to write Delta T attribute.\n",
+		  __func__, __LINE__);
+	  H5Aclose (attr_id);
+	  H5Gclose (group_id);
+	  ret= -1;
+	  break;
+	}
+      H5Aclose (attr_id);
+
       /* Write out expval data for this time step. */
-      mol->expval_fwrite(mol, ode->expval->data[i], &gid);
+      mol->expval_fwrite(mol, ode->expval->data[i], &group_id);
+
+      H5Gclose (group_id);
     }
 
- exit:
-  if (group_name != NULL)
-    MEMORY_FREE(group_name);
-
-  ret += H5Fclose(file_id);
+  H5Sclose (dataspace_id);
+  H5Gclose (root_group_id);
+  H5Fclose (file_id); 
+  
+  MEMORY_FREE(group_name);
 
   return ret;
 }
