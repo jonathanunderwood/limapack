@@ -28,7 +28,7 @@ main(int argc, char *argv[])
 
   fprintf(stdout, "<%d::%s> Initiliasing.\n", rank, host);
 
-  if (argc < 2)
+  if (argc < 3)
     {
       if (rank == 0)
 	fprintf (stderr, "Useage: %s <parameter file> <output file>.\n",

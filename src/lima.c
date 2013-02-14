@@ -12,7 +12,7 @@ main(int argc, char *argv[])
   odesys_t *odesys = NULL;
   struct stat file_status;
 
-  if (argc < 2)
+  if (argc < 3)
     {
       fprintf (stderr, "Useage: %s <parameter file> <output file>.\n",
                argv[0]);
