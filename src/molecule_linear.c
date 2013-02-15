@@ -626,7 +626,7 @@ linear_molecule_ctor(const double B, const int Jmax, const double T,
 			     linear_molecule_tdse_worker_mpi_send,
 			     linear_molecule_tdse_worker_mpi_recv,
 #endif
-			     linear_molecule_dispatched_dtor);
+			     linear_molecule_dtor);
   mol->Jmax = Jmax;
   mol->poptol = poptol;
   mol->oddwt = oddwt;
@@ -646,7 +646,7 @@ linear_molecule_ctor(const double B, const int Jmax, const double T,
   if (mol->alpha == NULL)
     {
       fprintf(stderr, "Failed to allocate memory for mol->alpha.\n");
-      linear_molecule_dtor(mol);
+      linear_molecule_dtor((molecule_t *) mol);
       return NULL;
     }
 
@@ -668,7 +668,7 @@ linear_molecule_ctor(const double B, const int Jmax, const double T,
   if (mol->job_status == NULL)
     {
       fprintf(stderr, "Failed to allocate memory for mol->tdse_status.\n");
-      linear_molecule_dtor(mol);
+      linear_molecule_dtor((molecule_t *)mol);
       return NULL;
     }
 
@@ -707,16 +707,10 @@ linear_molecule_cfg_parse_ctor(const config_setting_t *cfg)
 }
 
 void
-linear_molecule_dispatched_dtor(molecule_t * mol)
-/* This is a destructor function that aceepts a generic molecule_t,
-   recasts and calls the true destructor - this is needed for dispatch. */
+linear_molecule_dtor(molecule_t * molecule)
 { 
-  linear_molecule_dtor ((linear_molecule_t *) mol); 
-}
+  linear_molecule_t * mol = (linear_molecule_t *) molecule;
 
-void
-linear_molecule_dtor(linear_molecule_t * mol)
-{
   if (mol->job_status != NULL)
     JMarray_int_dtor(mol->job_status);
 
