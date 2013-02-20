@@ -32,7 +32,8 @@ main(int argc, char *argv[])
       return -1;
     }
 
-  odesys_tdse_propagate_simple (odesys);
+  //  odesys_tdse_propagate_simple (odesys);
+  odesys_tdse_propagate_threaded(odesys, 4);
   odesys_expval_fwrite(odesys, argv[2]);
 
   odesys_dtor(odesys);

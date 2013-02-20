@@ -5,6 +5,10 @@
 #include <libconfig.h>
 #include <hdf5.h>
 
+#ifdef BUILD_WITH_PTHREADS
+#include <pthread.h>
+#endif
+
 #ifdef BUILD_WITH_MPI
 #include <mpi.h>
 #endif
@@ -86,6 +90,10 @@ molecule_dispatch_register(molecule_t * molecule,
   molecule->tdse_worker_mpi_recv = tdse_worker_mpi_recv;
 #endif
   molecule->dtor = dtor;
+
+#ifdef BUILD_WITH_PTHREADS
+  pthread_mutex_init(&(molecule->lock), NULL);
+#endif
 
   return;
 }

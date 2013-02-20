@@ -30,6 +30,10 @@ int odesys_tdse_propagate_simple (odesys_t *odesys);
 
 int odesys_expval_fwrite(const odesys_t *ode, const char *filename);
 
+#ifdef BUILD_WITH_PTHREADS
+int odesys_tdse_propagate_threaded (odesys_t *odesys, const int nthreads);
+#endif
+
 #ifdef BUILD_WITH_MPI
 int odesys_tdse_propagate_mpi_master (odesys_t *odesys);
 int odesys_tdse_propagate_mpi_slave (odesys_t *odesys);

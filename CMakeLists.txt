@@ -17,6 +17,9 @@ find_package(MPI)
 # Find HDF5 package, required for data output
 find_package(HDF5 REQUIRED)
 
+# Find if we have pthreads available
+find_package(Threads)
+
 ## Compiler flags
 if(CMAKE_COMPILER_IS_GNUCC)
 #    set(CMAKE_C_FLAGS "-Wall -Werror -g -O2")

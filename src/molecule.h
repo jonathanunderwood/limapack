@@ -65,6 +65,9 @@ typedef struct _molecule_expval molecule_expval_t;
   
 typedef struct _molecule 
 {
+#ifdef BUILD_WITH_PTHREADS
+  pthread_mutex_t lock;
+#endif
   int (*tdse_rhs) (const struct _molecule *self, const laser_collection_t *lasers, 
 		   const double t, const double *coef, double *deriv);
   int (*get_tdse_job) (struct _molecule *self, molecule_tdse_worker_t *worker);

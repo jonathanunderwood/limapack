@@ -5,6 +5,10 @@
 #include <gsl/gsl_errno.h>
 #include <libconfig.h>
 
+#ifdef BUILD_WITH_PTHREADS
+#include <pthread.h>
+#endif
+
 #include "odesys.h"
 #include "molecule.h"
 #include "laser.h"
@@ -27,6 +31,9 @@ typedef struct _odesys_expval
 {
   int npoints;
   molecule_expval_t **data;
+#ifdef BUILD_WITH_PTHREADS
+  pthread_mutex_t lock;
+#endif
 } odesys_expval_t;
 
 /* General ODE system container. Contains all parameters, and stuff
@@ -48,6 +55,9 @@ struct _odesys
   gsl_odeiv_step_type *step_type;
   odeparams_t *params;
   odesys_expval_t *expval;
+#ifdef BUILD_WITH_PTHREADS
+  int thread_retval;
+#endif
 };
 
 static void
@@ -101,6 +111,10 @@ odesys_expval_ctor(const odesys_t *ode)
 	}
     }
   
+#ifdef BUILD_WITH_PTHREADS
+  pthread_mutex_init (&(expval->lock), NULL);
+#endif
+
   expval->npoints = npoints;
 
   return expval;
@@ -116,14 +130,16 @@ odesys_expval_add_weighted(const odesys_t * ode, odesys_expval_t * a,
 
   if (a->npoints !=b->npoints)
     {
-      fprintf(stderr, 
-	    "Dimension missmatch when adding expection values.\n");
+      fprintf (stderr, 
+	       "%s %d: dimension missmatch when adding expection values.\n",
+	       __func__, __LINE__);
+      fprintf (stderr, "a: %d b: %d\n", a->npoints, b->npoints);
       return -1;
     }
 
   for (i = 0; i < a->npoints; i++)
-    molecule->expval_add_weighted(molecule, 
-				  a->data[i], b->data[i], weight);
+    molecule->expval_add_weighted 
+      (molecule, a->data[i], b->data[i], weight);
 
   return 0;
 }
@@ -335,7 +351,7 @@ odesys_ctor()
       return NULL;
     }
 
-  if (MEMORY_ALLOC(ode->params)  < 0)
+  if (MEMORY_ALLOC(ode->params) < 0)
     {
       MEMORY_OOMERR;
       MEMORY_FREE(ode);
@@ -371,11 +387,38 @@ odesys_parse_from_config_ctor(const config_t * cfg)
 }
 
 static int
+odesys_gsl_init (odesys_t *ode)
+  /* Set up some things required by GSL. */
+{
+  molecule_t *molecule = ode->params->molecule;
+  int ncoef = molecule->get_ncoef(molecule);
+
+  ode->system.dimension = 2 * ncoef;
+  ode->system.function = odesys_tdse_function;
+  ode->system.jacobian = NULL;
+  ode->system.params = (void *)ode->params;
+
+  /* Note that we hard-code the ODE step type here. The step type
+     chosen is a general purpose type. In the future, should probably
+     try others. */
+  ode->step = gsl_odeiv_step_alloc (gsl_odeiv_step_rkf45, 2 * ncoef); 
+  ode->evolve = gsl_odeiv_evolve_alloc (2 * ncoef); 
+  ode->control = gsl_odeiv_control_standard_new 
+    (ode->eps_abs, ode->eps_rel, ode->y_scale, ode->dydx_scale);
+
+  /* This allows us to reset hstep if we need to. */
+  ode->hinit = ode->hstep;
+
+  /* TODO: we should do better error checking on the return from the
+     gsl alloc function calls above and return -1 if any fail (with
+     suitable cleanups). */
+  return 0;
+}
+
+static int
 odesys_init (odesys_t * ode, molecule_t * molecule, 
 	     laser_collection_t * lasers)
 {
-  int ncoef = molecule->get_ncoef(molecule);
-
   /* Wrap up the molecule and lasers structures into a single
      structure so we can pass a single pointer through the ODE
      functions as required by GSL - avoids global variables. Do this
@@ -401,24 +444,7 @@ odesys_init (odesys_t * ode, molecule_t * molecule,
       return -1;
     }
 
-  /* Set up some things required by GSL. */
-  ode->system.dimension = 2 * ncoef;
-  ode->system.function = odesys_tdse_function;
-  ode->system.jacobian = NULL;
-  ode->system.params = (void *)ode->params;
-
-  /* Note that we hard-code the ODE step type here. The step type
-     chosen is a general purpose type. In the future, should probably
-     try others. */
-  ode->step = gsl_odeiv_step_alloc (gsl_odeiv_step_rkf45, 2 * ncoef); 
-  ode->evolve = gsl_odeiv_evolve_alloc (2 * ncoef); 
-  ode->control = gsl_odeiv_control_standard_new 
-    (ode->eps_abs, ode->eps_rel, ode->y_scale, ode->dydx_scale);
-
-  /* This allows us to reset hstep if we need to. */
-  ode->hinit = ode->hstep;
-
-  return 0;
+  return odesys_gsl_init (ode);
 }
 
 odesys_t *
@@ -530,6 +556,7 @@ odesys_dtor (odesys_t * ode)
   MEMORY_FREE(ode);
 }
 
+
 void
 odesys_reset (odesys_t * ode)
 {
@@ -639,7 +666,15 @@ odesys_tdse_propagate_simple (odesys_t *odesys)
      /* Add expectation values for this job to the accumulating
 	expectation values, weighted appropriately. */
      weight = mol->get_tdse_job_weight(mol, worker);
-     odesys_expval_add_weighted(odesys, odesys->expval, buff, weight);
+     if (odesys_expval_add_weighted(odesys, odesys->expval, buff, weight))
+	   {
+	     fprintf(stderr, "%s %d: error adding expectation values.\n",
+		     __func__, __LINE__);
+	     MEMORY_FREE(coef);
+	     mol->tdse_worker_dtor(mol, worker);
+	     odesys_expval_dtor(odesys, buff);
+	     return -1;
+	   }
      
      /* Mark this job as done. */
      mol->set_tdse_job_done(mol, worker);
@@ -651,6 +686,265 @@ odesys_tdse_propagate_simple (odesys_t *odesys)
 
   return 0;
 }
+
+#ifdef BUILD_WITH_PTHREADS
+static odesys_t *
+odesys_shallow_copy_ctor (odesys_t * ode)
+/* Returns a shallow copy of the input odesys_t object. "Shallow" in
+   this context means that all pointers in the output object point to
+   the same memory addresses as the input object. In particular, this
+   means that the params and expval pointers point to the same memory
+   address as the input object. */
+{
+  odesys_t * copy;
+
+  if (MEMORY_ALLOC (copy) < 0)
+    {
+      MEMORY_OOMERR;
+      fprintf(stderr, "%s %d: Failed to allocate memory for odesys_t copy",
+	      __func__, __LINE__);
+      return NULL;
+    }
+
+  copy->hstep = ode->hstep;
+  copy->tstart = ode->tstart;
+  copy->tend = ode->tend;
+  copy->tstep = ode->tstep;
+  copy->npoints = ode->npoints;
+  copy->eps_rel = ode->eps_rel;
+  copy->eps_abs = ode->eps_abs;
+  copy->y_scale = ode->y_scale;
+  copy->dydx_scale = ode->dydx_scale;
+  copy->params = ode->params;
+  copy->expval = ode->expval;
+
+  odesys_gsl_init (copy);
+
+  return copy;
+}
+
+static void
+odesys_shallow_copy_dtor (odesys_t *copy)
+/* Frees memory associated with an odesys_t object created with
+   odesys_copy_ctor. This doesn't free the storage associated with the
+   params and expval pointers in the odesys_t object. */
+{
+  gsl_odeiv_evolve_free (copy->evolve);
+  gsl_odeiv_control_free (copy->control);
+  gsl_odeiv_step_free (copy->step);
+
+  //  MEMORY_FREE (copy->params);
+
+  MEMORY_FREE (copy);
+}
+
+static void *
+odesys_tdse_propagate_threaded_child (void *odesystem)
+  /* Child thread. TODO: fix up error messages. */
+{
+  odesys_t *odesys = (odesys_t *) odesystem;
+  double *coef = NULL;
+  double weight;
+  molecule_tdse_worker_t *worker = NULL;
+  molecule_t *mol = odesys->params->molecule;
+  odesys_expval_t *buff = NULL;
+
+  odesys->thread_retval = 0;
+
+  if (MEMORY_ALLOC_N(coef, 2 * mol->get_ncoef(mol)) < 0)
+    {
+      MEMORY_OOMERR;
+      odesys->thread_retval = -1;
+      pthread_exit (NULL);
+    }
+
+  worker = mol->tdse_worker_ctor(mol);
+  if (worker == NULL)
+    {
+      fprintf(stderr, "Failed to allocate worker.\n");
+      MEMORY_FREE(coef);
+      odesys->thread_retval = -1;
+      pthread_exit (NULL);
+    }
+
+  buff = odesys_expval_ctor(odesys);
+  if (buff == NULL)
+    {
+      MEMORY_FREE(coef);
+      mol->tdse_worker_dtor(mol, worker);
+      odesys->thread_retval = -1;
+      pthread_exit (NULL);
+    }
+
+  /* Step through initial states of molecule (eg. the individual
+     states in a Boltzmann distribution). For each initial state,
+     propagate the TDSE, calculating the expectation values at each
+     time-step, and add them to the ensemble averaged expectation
+     value, weighted appropriately. */
+  do
+    //  while (mol->get_tdse_job(mol, worker) == 0) 
+   { 
+     double t1 = odesys->tstart;
+     int i, ret;
+
+     /* Get a job to do if any are available. Note that it's important
+	here to obtain a mutex so that we don't have a race condition
+	in get_tdse_job between looking up a job and assigning a job -
+	if two threads access this function at the same time, there's
+	a chance they'll both be assigned the same job unless we use a
+	mutex. */
+     pthread_mutex_lock(&(mol->lock));
+     ret = mol->get_tdse_job(mol, worker);
+     pthread_mutex_unlock(&(mol->lock));
+
+     if (ret != 0)
+       {
+	 // No jobs to do, so exit thread.
+	 break;
+       }
+
+     odesys_reset(odesys);
+     mol->get_tdse_job_coef(mol, worker, coef);
+
+     for (i = 0; i < odesys->npoints; i++) /* Step through time points. */
+       {
+	 /* Check that populations in highest levels aren't growing
+	    unacceptably. */
+	 if (mol->check_populations(mol, coef) != 0)
+	   {
+	     fprintf(stderr, 
+		     "Populations building up unacceptably in TDSE propagation at t=%g ps. Exiting.\n", 
+		     AU_TO_PS(t1));
+	     odesys->thread_retval = -1;
+	     break;
+	   }
+	 
+	 /* Calculate expectation values at this time. */
+	 if (mol->expval_calc(mol, coef, t1, buff->data[i]) < 0)
+	   {
+	     fprintf(stderr, "Error calculating expectation values at t=%g ps. Exiting.\n",
+		     AU_TO_PS(t1));
+	     odesys->thread_retval = -1;
+	     break;
+	   }
+
+	 /* Propagate to the next time point. */
+	 odesys_step(odesys, t1, t1 + odesys->tstep, coef);
+	     
+	 t1 += odesys->tstep;
+       }
+     /* Add expectation values for this job to the accumulating
+	expectation values, weighted appropriately, and mark this job
+	as done. We lock the mol structure here to avoid multiple
+	threads writing to the expectation value storeage at the same
+	time, though this may not actually be necessary - depends on
+	the molecular model. Similarly, locking while updating the
+	TDSE job info may not be necessary. */
+     weight = mol->get_tdse_job_weight(mol, worker);
+
+     pthread_mutex_lock(&(odesys->expval->lock));
+     ret = odesys_expval_add_weighted(odesys, odesys->expval, buff, weight);
+     pthread_mutex_unlock(&(odesys->expval->lock));
+
+     if (ret < 0)
+       {
+	 fprintf(stderr, "%s %d: error adding expectation values.\n",
+		 __func__, __LINE__);
+	 odesys->thread_retval = -1;
+	 break;
+       }
+
+     pthread_mutex_lock(&(mol->lock));
+     mol->set_tdse_job_done(mol, worker);
+     pthread_mutex_unlock(&(mol->lock));
+   } while (0);
+  
+  MEMORY_FREE(coef);
+  mol->tdse_worker_dtor(mol, worker);
+  odesys_expval_dtor(odesys, buff);
+
+  return NULL;
+}
+
+int
+odesys_tdse_propagate_threaded (odesys_t *odesys, const int nthreads)
+/* Simple single threaded generic propagator which uses a single
+   worker. */
+{
+  pthread_t thread[nthreads];
+  odesys_t **ode;
+  int i, retval = 0;
+
+  /* Each thread process will need a shallow copy of odesys. For
+     defintion of shallow copy, see above. */
+  if (MEMORY_ALLOC_N(ode, nthreads))
+    {
+      fprintf(stderr, "%s %d: Failed to allocate memory for ode copy objects.\n",
+	      __func__, __LINE__);
+      return -1;
+    }
+
+  for (i = 0; i < nthreads; i++)
+    {
+      ode[i] = odesys_shallow_copy_ctor (odesys);
+      if (ode[i] == NULL)
+	{
+	  int j;
+	  fprintf(stderr, "%s %d: Failed to create shallow copy of odesys.\n",
+		  __func__, __LINE__);
+
+	  for (j = i - 1; j >= 0; j--)
+	    odesys_shallow_copy_dtor (ode[i]);
+
+	  MEMORY_FREE (ode);
+	  return -1;
+	}
+    }
+
+  /* Spawn threads. */
+  for (i = 0; i < nthreads; i++)
+    {
+      int ret = pthread_create (&thread[i], NULL, 
+				odesys_tdse_propagate_threaded_child,
+				(void *) ode[i]);
+      if (ret)
+	{
+	  int j;
+	  fprintf(stderr, "%s %d: Failed to create thread.\n", __func__,
+		  __LINE__);
+	  for (j = i - 1; j >= 0; j--)
+	    pthread_cancel(thread[j]);
+
+	  retval = -1;
+	}
+    }
+
+  /* Wait for threads to finish and check their return status. */
+  if (retval == 0)
+    {
+      for (i = 0; i < nthreads; i++)
+	{
+	  pthread_join(thread[i], NULL);
+	  if (ode[i]->thread_retval < 0)
+	    {
+	      // TODO: we should get the thread id properly here rather than use i.
+	      fprintf (stderr, "%s %d: Thread %d exited uncleanly.\n", __func__, __LINE__, 
+		       i);
+	      retval = -1;
+	    }
+	}
+    }
+
+  /* Clean up and return. */
+  for (i = 0; i < nthreads; i++)
+    odesys_shallow_copy_dtor (ode[i]);
+
+  MEMORY_FREE (ode);
+
+  return retval;
+}
+
+#endif /* BUILD_WITH_PTHREADS */
 
 #ifdef BUILD_WITH_MPI
 #include <mpi.h>
@@ -767,7 +1061,15 @@ odesys_tdse_propagate_mpi_master (odesys_t *odesys)
 				HAVE_DATA_TAG, MPI_COMM_WORLD);
 
 	 weight = mol->get_tdse_job_weight(mol, worker);
-	 odesys_expval_add_weighted(odesys, odesys->expval, buff, weight);
+	 
+	 if (odesys_expval_add_weighted(odesys, odesys->expval, buff, weight))
+	   {
+	     fprintf(stderr, "%s %d: error adding expectation values.\n",
+		     __func__, __LINE__);
+	     mol->tdse_worker_dtor(mol, worker);
+	     odesys_expval_dtor(odesys, buff);
+	     return -1;
+	   }
 
 	 mol->set_tdse_job_done(mol, worker);
 	 break;
