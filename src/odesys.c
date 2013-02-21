@@ -46,19 +46,115 @@ struct _odesys
 {
   int npoints;
   double tstart, tend, tstep;
-  double hstep, hinit;
+  double hstep;//, hinit;
   double eps_rel, eps_abs, y_scale, dydx_scale;
-  gsl_odeiv_system system;
-  gsl_odeiv_step *step;
-  gsl_odeiv_control *control;
-  gsl_odeiv_evolve *evolve;
-  gsl_odeiv_step_type *step_type;
   odeparams_t *params;
   odesys_expval_t *expval;
 #ifdef BUILD_WITH_PTHREADS
   int thread_retval;
 #endif
 };
+
+/* This structure contains all the structures that are needed for the
+   GSL ODE propagators. */
+typedef struct _odegsl 
+{
+  gsl_odeiv_system system;
+  gsl_odeiv_step *step;
+  gsl_odeiv_control *control;
+  gsl_odeiv_evolve *evolve;
+  gsl_odeiv_step_type *step_type;
+  double hstep, hinit;
+} odegsl_t;
+
+static int
+odesys_tdse_function (const double t, const double coefs[], 
+		      double derivs[], void *params)
+/* Generic wrapper function for the RHS of the TDSE. Performs type
+   castings, and dispatches the molecule specific function. */
+{
+  odeparams_t *p = (odeparams_t *) params;
+  laser_collection_t *lasers = p->lasers;
+  molecule_t *mol = p->molecule;
+  int i;
+
+  /* Ensure all elements of derivative array are zero. This can't be
+     done in the main loop of mol->tdse_rhs. */
+  for (i = 0; i < 2 * mol->get_ncoef(mol); i++)
+    derivs[i] = 0.0;
+
+  /* Dispatch molecule specific function and return. */
+  return mol->tdse_rhs(mol, lasers, t, coefs, derivs);
+}
+
+static odegsl_t *
+odesys_odegsl_ctor (odesys_t *ode)
+{
+  odegsl_t *odegsl;
+  molecule_t *molecule = ode->params->molecule;
+  int ncoef = molecule->get_ncoef(molecule);
+
+  if (MEMORY_ALLOC (odegsl) < 0)
+    {
+      MEMORY_OOMERR;
+      fprintf (stderr, "%s %d: unable to allocate memory for odegsl object.\n",
+	       __func__, __LINE__);
+      return NULL;
+    }
+
+  odegsl->system.dimension = 2 * ncoef;
+  odegsl->system.function = odesys_tdse_function;
+  odegsl->system.jacobian = NULL;
+  odegsl->system.params = (void *) ode->params;
+
+  /* Note that we hard-code the ODE step type here. The step type
+     chosen is a general purpose type. In the future, should probably
+     try others. */
+  odegsl->step = gsl_odeiv_step_alloc (gsl_odeiv_step_rkf45, 2 * ncoef); 
+  odegsl->evolve = gsl_odeiv_evolve_alloc (2 * ncoef); 
+  odegsl->control = gsl_odeiv_control_standard_new 
+    (ode->eps_abs, ode->eps_rel, ode->y_scale, ode->dydx_scale);
+
+  odegsl->hstep = ode->hstep;
+  odegsl->hinit = ode->hstep;
+
+  return odegsl;
+}
+
+static void
+odesys_odegsl_dtor (odegsl_t *odegsl)
+{
+  MEMORY_FREE (odegsl);
+}
+
+static int
+odesys_odegsl_step(odegsl_t * odegsl, const double t1, const double t2, 
+		   double *coef)
+{
+  double t = t1;
+
+  while (t < t2)
+    {
+      int ode_status =
+	gsl_odeiv_evolve_apply (odegsl->evolve, odegsl->control, odegsl->step,
+				&(odegsl->system), &t, t2, &(odegsl->hstep), coef);
+      if (ode_status)
+	{
+	  fprintf (stderr, "%s %d: gsl_odeiv_evolve_apply error: %s\n",
+		   __func__, __LINE__, gsl_strerror (ode_status));
+	  return -1;
+	}
+    }
+  return 0;
+}
+
+static void
+odesys_odegsl_reset (odegsl_t * odegsl)
+{
+  gsl_odeiv_evolve_reset (odegsl->evolve);
+  gsl_odeiv_step_reset (odegsl->step);
+  odegsl->hstep = odegsl->hinit;
+}
 
 static void
 odesys_expval_dtor(const odesys_t *ode, odesys_expval_t *expval)
@@ -144,25 +240,6 @@ odesys_expval_add_weighted(const odesys_t * ode, odesys_expval_t * a,
   return 0;
 }
 
-static int
-odesys_tdse_function (const double t, const double coefs[], 
-		      double derivs[], void *params)
-/* Generic wrapper function for the RHS of the TDSE. Performs type
-   castings, and dispatches the molecule specific function. */
-{
-  odeparams_t *p = (odeparams_t *) params;
-  laser_collection_t *lasers = p->lasers;
-  molecule_t *mol = p->molecule;
-  int i;
-
-  /* Ensure all elements of derivative array are zero. This can't be
-     done in the main loop of mol->tdse_rhs. */
-  for (i = 0; i < 2 * mol->get_ncoef(mol); i++)
-    derivs[i] = 0.0;
-
-  /* Dispatch molecule specific function and return. */
-  return mol->tdse_rhs(mol, lasers, t, coefs, derivs);
-}
 
 int
 odesys_expval_fwrite(const odesys_t *ode, const char *filename)
@@ -358,18 +435,6 @@ odesys_ctor()
       return NULL;
     }
 
-  /* Set this to a negative vaule so that odesys_init can check that
-     odesys_cfg_parse has been called. */
-  ode->hstep = -99.0;
-
-  ode->system.dimension = 0;
-  ode->system.function = NULL;
-  ode->system.jacobian = NULL;
-  ode->system.params = NULL;
-  ode->step = NULL;
-  ode->evolve = NULL;
-  ode->control = NULL;
-
   return ode;
 }
 
@@ -386,34 +451,6 @@ odesys_parse_from_config_ctor(const config_t * cfg)
   return ode;
 }
 
-static int
-odesys_gsl_init (odesys_t *ode)
-  /* Set up some things required by GSL. */
-{
-  molecule_t *molecule = ode->params->molecule;
-  int ncoef = molecule->get_ncoef(molecule);
-
-  ode->system.dimension = 2 * ncoef;
-  ode->system.function = odesys_tdse_function;
-  ode->system.jacobian = NULL;
-  ode->system.params = (void *)ode->params;
-
-  /* Note that we hard-code the ODE step type here. The step type
-     chosen is a general purpose type. In the future, should probably
-     try others. */
-  ode->step = gsl_odeiv_step_alloc (gsl_odeiv_step_rkf45, 2 * ncoef); 
-  ode->evolve = gsl_odeiv_evolve_alloc (2 * ncoef); 
-  ode->control = gsl_odeiv_control_standard_new 
-    (ode->eps_abs, ode->eps_rel, ode->y_scale, ode->dydx_scale);
-
-  /* This allows us to reset hstep if we need to. */
-  ode->hinit = ode->hstep;
-
-  /* TODO: we should do better error checking on the return from the
-     gsl alloc function calls above and return -1 if any fail (with
-     suitable cleanups). */
-  return 0;
-}
 
 static int
 odesys_init (odesys_t * ode, molecule_t * molecule, 
@@ -422,7 +459,7 @@ odesys_init (odesys_t * ode, molecule_t * molecule,
   /* Wrap up the molecule and lasers structures into a single
      structure so we can pass a single pointer through the ODE
      functions as required by GSL - avoids global variables. Do this
-     before odesys_expval_ctor, as this function will call
+     before calling odesys_expval_ctor, as that function will call
      molecule->expval_ctor(). */
   ode->params->molecule = molecule;
   ode->params->lasers = lasers;
@@ -435,16 +472,7 @@ odesys_init (odesys_t * ode, molecule_t * molecule,
       return -1;
     }
 
-  /* See odesys_ctor - this checks to see if ode_cfg_parse has been
-     called to set up the basic parameters before odesys_init is
-     called. */
-  if (ode->hstep < 0)
-    {
-      fprintf(stderr, "odesys_cfg_parse has not been called, hstep < 0.\n");
-      return -1;
-    }
-
-  return odesys_gsl_init (ode);
+  return 0;
 }
 
 odesys_t *
@@ -545,46 +573,12 @@ odesys_dtor (odesys_t * ode)
   if (ode->expval != NULL)
     odesys_expval_dtor(ode, ode->expval);
 
-  gsl_odeiv_evolve_free (ode->evolve);
-  gsl_odeiv_control_free (ode->control);
-  gsl_odeiv_step_free (ode->step);
-
   ode->params->molecule->dtor(ode->params->molecule);
   laser_collection_dtor (ode->params->lasers);
   MEMORY_FREE(ode->params);
 
   MEMORY_FREE(ode);
 }
-
-
-void
-odesys_reset (odesys_t * ode)
-{
-  gsl_odeiv_evolve_reset (ode->evolve);
-  gsl_odeiv_step_reset (ode->step);
-  ode->hstep = ode->hinit;
-}
-
-int
-odesys_step (odesys_t * ode, const double t1, const double t2, double *coef)
-{
-  double t = t1;
-
-  while (t < t2)
-    {
-      int ode_status =
-	gsl_odeiv_evolve_apply (ode->evolve, ode->control, ode->step,
-				&(ode->system), &t, t2, &(ode->hstep), coef);
-      if (ode_status)
-	{
-	  fprintf (stderr, "gsl_odeiv_evolve_apply error: %s\n",
-		   gsl_strerror (ode_status));
-	  return -1;
-	}
-    }
-  return 0;
-}
-
 
 int 
 odesys_tdse_propagate_simple (odesys_t *odesys)
@@ -596,6 +590,8 @@ odesys_tdse_propagate_simple (odesys_t *odesys)
   molecule_tdse_worker_t *worker = NULL;
   molecule_t *mol = odesys->params->molecule;
   odesys_expval_t *buff = NULL;
+  odegsl_t *odegsl;
+  int retval = 0;
 
   if (MEMORY_ALLOC_N(coef, 2 * mol->get_ncoef(mol)) < 0)
     {
@@ -614,11 +610,24 @@ odesys_tdse_propagate_simple (odesys_t *odesys)
   buff = odesys_expval_ctor(odesys);
   if (buff == NULL)
     {
+      fprintf(stderr, "%s %d: failed to allocate memory for buff.\n",
+	      __func__, __LINE__);
       MEMORY_FREE(coef);
       mol->tdse_worker_dtor(mol, worker);
       return -1;
     }
 
+  odegsl = odesys_odegsl_ctor (odesys);
+  if (odegsl == NULL)
+    {
+      fprintf(stderr, "%s %d: failed to allocate memory for odegsl.\n",
+	      __func__, __LINE__);
+      odesys_expval_dtor (odesys, buff);
+      MEMORY_FREE (coef);
+      mol->tdse_worker_dtor (mol, worker);
+      return -1;
+    }
+    
   /* Step through initial states of molecule (eg. the individual
      states in a Boltzmann distribution). For each initial state,
      propagate the TDSE, calculating the expectation values at each
@@ -629,7 +638,7 @@ odesys_tdse_propagate_simple (odesys_t *odesys)
      double t1 = odesys->tstart;
      int i;
 
-     odesys_reset(odesys);
+     odesys_odegsl_reset(odegsl);
      mol->get_tdse_job_coef(mol, worker, coef);
 
      for (i = 0; i < odesys->npoints; i++) /* Step through time points. */
@@ -641,10 +650,8 @@ odesys_tdse_propagate_simple (odesys_t *odesys)
 	     fprintf(stderr, 
 		     "Populations building up unacceptably in TDSE propagation at t=%g ps. Exiting.\n", 
 		     AU_TO_PS(t1));
-	     MEMORY_FREE(coef);
-	     mol->tdse_worker_dtor(mol, worker);
-	     odesys_expval_dtor(odesys, buff);
-	     return -1;
+	     retval = -1;
+	     break;
 	   }
 	 
 	 /* Calculate expectation values at this time. */
@@ -652,14 +659,12 @@ odesys_tdse_propagate_simple (odesys_t *odesys)
 	   {
 	     fprintf(stderr, "Error calculating expectation values at t=%g ps. Exiting.\n",
 		     AU_TO_PS(t1));
-	     MEMORY_FREE(coef);
-	     mol->tdse_worker_dtor(mol, worker);
-	     odesys_expval_dtor(odesys, buff);
-	     return -1;
+	     retval = -1;
+	     break;
 	   }
 
 	 /* Propagate to the next time point. */
-	 odesys_step(odesys, t1, t1 + odesys->tstep, coef);
+	 odesys_odegsl_step(odegsl, t1, t1 + odesys->tstep, coef);
 	     
 	 t1 += odesys->tstep;
        }
@@ -670,10 +675,8 @@ odesys_tdse_propagate_simple (odesys_t *odesys)
 	   {
 	     fprintf(stderr, "%s %d: error adding expectation values.\n",
 		     __func__, __LINE__);
-	     MEMORY_FREE(coef);
-	     mol->tdse_worker_dtor(mol, worker);
-	     odesys_expval_dtor(odesys, buff);
-	     return -1;
+	     retval = -1;
+	     break;
 	   }
      
      /* Mark this job as done. */
@@ -683,8 +686,9 @@ odesys_tdse_propagate_simple (odesys_t *odesys)
   MEMORY_FREE(coef);
   mol->tdse_worker_dtor(mol, worker);
   odesys_expval_dtor(odesys, buff);
+  odesys_odegsl_dtor (odegsl);
 
-  return 0;
+  return retval;
 }
 
 #ifdef BUILD_WITH_PTHREADS
@@ -718,7 +722,7 @@ odesys_shallow_copy_ctor (odesys_t * ode)
   copy->params = ode->params;
   copy->expval = ode->expval;
 
-  odesys_gsl_init (copy);
+  /* odesys_gsl_init (copy); */
 
   return copy;
 }
@@ -729,12 +733,6 @@ odesys_shallow_copy_dtor (odesys_t *copy)
    odesys_copy_ctor. This doesn't free the storage associated with the
    params and expval pointers in the odesys_t object. */
 {
-  gsl_odeiv_evolve_free (copy->evolve);
-  gsl_odeiv_control_free (copy->control);
-  gsl_odeiv_step_free (copy->step);
-
-  //  MEMORY_FREE (copy->params);
-
   MEMORY_FREE (copy);
 }
 
@@ -748,6 +746,7 @@ odesys_tdse_propagate_threaded_child (void *odesystem)
   molecule_tdse_worker_t *worker = NULL;
   molecule_t *mol = odesys->params->molecule;
   odesys_expval_t *buff = NULL;
+  odegsl_t *odegsl;
 
   odesys->thread_retval = 0;
 
@@ -776,13 +775,24 @@ odesys_tdse_propagate_threaded_child (void *odesystem)
       pthread_exit (NULL);
     }
 
+  odegsl = odesys_odegsl_ctor (odesys);
+  if (odegsl == NULL)
+    {
+      fprintf(stderr, "%s %d: failed to allocate memory for odegsl.\n",
+	      __func__, __LINE__);
+      MEMORY_FREE(coef);
+      odesys_expval_dtor (odesys, buff);
+      mol->tdse_worker_dtor(mol, worker);
+      odesys->thread_retval = -1;
+      pthread_exit (NULL);
+    }
+
   /* Step through initial states of molecule (eg. the individual
      states in a Boltzmann distribution). For each initial state,
      propagate the TDSE, calculating the expectation values at each
      time-step, and add them to the ensemble averaged expectation
      value, weighted appropriately. */
   do
-    //  while (mol->get_tdse_job(mol, worker) == 0) 
    { 
      double t1 = odesys->tstart;
      int i, ret;
@@ -797,13 +807,10 @@ odesys_tdse_propagate_threaded_child (void *odesystem)
      ret = mol->get_tdse_job(mol, worker);
      pthread_mutex_unlock(&(mol->lock));
 
-     if (ret != 0)
-       {
-	 // No jobs to do, so exit thread.
+     if (ret != 0) /* Nothing to do, so exit thread */
 	 break;
-       }
 
-     odesys_reset(odesys);
+     odesys_odegsl_reset(odegsl);
      mol->get_tdse_job_coef(mol, worker, coef);
 
      for (i = 0; i < odesys->npoints; i++) /* Step through time points. */
@@ -829,7 +836,7 @@ odesys_tdse_propagate_threaded_child (void *odesystem)
 	   }
 
 	 /* Propagate to the next time point. */
-	 odesys_step(odesys, t1, t1 + odesys->tstep, coef);
+	 odesys_odegsl_step(odegsl, t1, t1 + odesys->tstep, coef);
 	     
 	 t1 += odesys->tstep;
        }
@@ -862,6 +869,7 @@ odesys_tdse_propagate_threaded_child (void *odesystem)
   MEMORY_FREE(coef);
   mol->tdse_worker_dtor(mol, worker);
   odesys_expval_dtor(odesys, buff);
+  odesys_odegsl_dtor (odegsl);
 
   return NULL;
 }
@@ -1124,6 +1132,7 @@ odesys_tdse_propagate_mpi_slave (odesys_t *odesys)
 {
   double *coef = NULL;
   molecule_tdse_worker_t *worker = NULL;
+  odegsl_t *odegsl;
   molecule_t *mol = odesys->params->molecule;
   int state;
   int max_host_length = ODESYS_MAX_HOST_NAME_LENGTH;
@@ -1152,6 +1161,17 @@ odesys_tdse_propagate_mpi_slave (odesys_t *odesys)
       return -1;
     }
 
+  odegsl = odesys_odegsl_ctor (odesys);
+  if (odegsl == NULL)
+    {
+      fprintf(stderr, "<%d::%s> Failed to allocate memory for odegsl.\n",
+	      rank, host);
+      MPI_Send(NULL, 0, MPI_INT, 0, SLAVE_OOM_ERROR_TAG, MPI_COMM_WORLD);
+      MEMORY_FREE(coef);
+      mol->tdse_worker_dtor(mol, worker);
+      return -1;
+    }
+
   state = DO_WORK_STATE;
 
   do
@@ -1175,7 +1195,7 @@ odesys_tdse_propagate_mpi_slave (odesys_t *odesys)
 		  rank, host, worker->description);
 
 	  mol->get_tdse_job_coef(mol, worker, coef);
-	  odesys_reset(odesys);
+	  odesys_odegsl_reset(odegsl);
 
 	  /* Step through time points. */
 	  for (i = 0; i < odesys->npoints; i++)
@@ -1192,6 +1212,7 @@ odesys_tdse_propagate_mpi_slave (odesys_t *odesys)
 			  rank, host, AU_TO_PS(t1));
 		  MEMORY_FREE(coef);
 		  mol->tdse_worker_dtor(mol, worker);
+		  odesys_odegsl_dtor (odegsl);
 		  MPI_Send(NULL, 0, MPI_INT, 0, SLAVE_CALC_ERROR_TAG, MPI_COMM_WORLD);
 		  return -1;
 		}
@@ -1203,12 +1224,13 @@ odesys_tdse_propagate_mpi_slave (odesys_t *odesys)
 			  rank, host, AU_TO_PS(t1));
 		  MEMORY_FREE(coef);
 		  mol->tdse_worker_dtor(mol, worker);
+		  odesys_odegsl_dtor (odegsl);
 		  MPI_Send(NULL, 0, MPI_INT, 0, SLAVE_CALC_ERROR_TAG, MPI_COMM_WORLD);
 		  return -1;
 		}
 
 	      /* Propagate to the next time point. */
-	      odesys_step(odesys, t1, t2, coef);
+	      odesys_odegsl_step(odegsl, t1, t2, coef);
 	    }
 	  
 	  /* Send calculated expectation values back to master. */
@@ -1229,6 +1251,7 @@ odesys_tdse_propagate_mpi_slave (odesys_t *odesys)
 	
   /* Cleanup. */
   MEMORY_FREE(coef);
+  odesys_odegsl_dtor (odegsl);
   mol->tdse_worker_dtor(mol, worker);
       
   return 0;
