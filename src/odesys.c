@@ -124,6 +124,9 @@ odesys_odegsl_ctor (odesys_t *ode)
 static void
 odesys_odegsl_dtor (odegsl_t *odegsl)
 {
+  gsl_odeiv_evolve_free (odegsl->evolve);
+  gsl_odeiv_control_free (odegsl->control);
+  gsl_odeiv_step_free (odegsl->step);
   MEMORY_FREE (odegsl);
 }
 
