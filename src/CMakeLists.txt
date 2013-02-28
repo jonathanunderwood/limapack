@@ -23,6 +23,7 @@ set (common_files
   dcmsq.c
   slurp.c
   asymrot_eigsys.c
+  molecule_asymrot.c
 )
 
 # add_library(limalib OBJECT
