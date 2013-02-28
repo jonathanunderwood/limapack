@@ -22,6 +22,7 @@ set (common_files
   dmtxel.c
   dcmsq.c
   slurp.c
+  asymrot_eigsys.c
 )
 
 # add_library(limalib OBJECT
