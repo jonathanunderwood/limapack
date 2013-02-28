@@ -1,15 +1,7 @@
 #ifndef __JMARRAY_@@TYPE@@_H__
 #define __JMARRAY_@@TYPE@@_H__
 
-typedef struct _JMarray_@@TYPE@@
-{
-  double (*get) (struct _JMarray_@@TYPE@@ * self, const int J, const int M);
-  void (*set) (struct _JMarray_@@TYPE@@ * self, const int J, const int M,
-	       const double val);
-  double *data;
-  int Jmax;
-  int dim;
-} JMarray_@@TYPE@@_t;
+typedef struct _JMarray_@@TYPE@@ JMarray_@@TYPE@@_t;
 
 JMarray_@@TYPE@@_t * JMarray_@@TYPE@@_ctor (const int Jmax);
 void JMarray_@@TYPE@@_dtor (JMarray_@@TYPE@@_t * a);

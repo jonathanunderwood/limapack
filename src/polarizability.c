@@ -26,16 +26,21 @@ polarizability_from_cart_ctor (const double a_xx,
   if (p == NULL)
     return p;
 
-  p->set(p, 0, 0, -(a_xx + a_yy + a_zz) / sqrt (3.0));
-  p->set(p, 1, -1, 0.0);
-  p->set(p, 1, 0, 0.0);
-  p->set(p, 1, 1, 0.0);
-  p->set(p, 2, -2, 0.5 * (a_xx - a_yy));
-  p->set(p, 2, -1, 0.0);
-  p->set(p, 2, 0, (2.0 * a_zz - a_xx - a_yy) / sqrt (6.0));
-  p->set(p, 2, 1, 0.0);
-  p->set(p, 2, 2, 0.5 * (a_xx - a_yy));
+  JMarray_double_set(p, 0, 0, -(a_xx + a_yy + a_zz) / sqrt (3.0));
+  JMarray_double_set(p, 1, -1, 0.0);
+  JMarray_double_set(p, 1, 0, 0.0);
+  JMarray_double_set(p, 1, 1, 0.0);
+  JMarray_double_set(p, 2, -2, 0.5 * (a_xx - a_yy));
+  JMarray_double_set(p, 2, -1, 0.0);
+  JMarray_double_set(p, 2, 0, (2.0 * a_zz - a_xx - a_yy) / sqrt (6.0));
+  JMarray_double_set(p, 2, 1, 0.0);
+  JMarray_double_set(p, 2, 2, 0.5 * (a_xx - a_yy));
   
   return p;
 }
 
+double
+polarizability_get (polarizability_t *alpha, const int k, const int q)
+{
+  return JMarray_double_get (alpha, k, q);
+}

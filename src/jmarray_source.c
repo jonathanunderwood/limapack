@@ -1,8 +1,19 @@
 #include <stdlib.h>
 #include "memory.h"
 #include "jmarray.h"
+#include "jmarray_@@TYPE@@.h"
 
-JMarray_t *
+struct _JMarray_@@TYPE@@
+{
+  @@TYPE@@ (*get) (struct _JMarray_@@TYPE@@ * self, const int J, const int M);
+  void (*set) (struct _JMarray_@@TYPE@@ * self, const int J, const int M,
+	       const @@TYPE@@ val);
+  @@TYPE@@ *data;
+  int Jmax;
+  int dim;
+};
+
+JMarray_@@TYPE@@_t *
 JMarray_@@TYPE@@_ctor (const int Jmax)
 {
   unsigned int dim = JMarray_dim (Jmax);

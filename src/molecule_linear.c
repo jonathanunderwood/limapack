@@ -18,6 +18,7 @@
 #include "laser.h"
 #include "polarizability.h"
 #include "jmarray.h"
+#include "jmarray_int.h"
 #include "memory.h"
 #include "molecule_linear.h"
 #include "dmtxel.h"
@@ -267,17 +268,17 @@ linear_molecule_get_tdse_job(molecule_t *molecule,
     for (M = -J; M <= J; M++)
       {
 	int status = 
-	  mol->job_status->get(mol->job_status, J, M);
+	  JMarray_int_get(mol->job_status, J, M);
 	if (status == __TODO)
 	  {
 	    double wt = linear_molecule_boltzmann_statwt(mol, J);
 
 	    //	    fprintf(stdout, "J: %d M: %d wt: %g\n", J, M, wt); 
 	    if (wt < mol->poptol) /* Population in this state negligible */
-		mol->job_status->set(mol->job_status, J, M, __DONE);
+		JMarray_int_set(mol->job_status, J, M, __DONE);
 	    else
 	      {
-		mol->job_status->set(mol->job_status, J, M, __STARTED);
+		JMarray_int_set(mol->job_status, J, M, __STARTED);
 		w->J = J;
 		w->M = M;
 		snprintf(w->parent.description, 
@@ -301,7 +302,7 @@ linear_molecule_set_tdse_job_done (molecule_t *molecule,
   linear_molecule_tdse_worker_t *w = 
     (linear_molecule_tdse_worker_t *) worker;
 
-  m->job_status->set(m->job_status, w->J, w->M, __DONE);
+  JMarray_int_set(m->job_status, w->J, w->M, __DONE);
   //w->parent.state = TW_WAITING;
 }
 
@@ -510,7 +511,8 @@ linear_molecule_tdse_rhs(const molecule_t *molecule,
 			  for (k = kmin; k <= 2; k += 2)
 			    {
 			      gsl_complex Ekp = E->get (E, k, p);
-			      double a = -mol->alpha->get (mol->alpha, k, 0) *
+			      double alphak0 = polarizability_get (mol->alpha, k, 0);
+			      double a = -alphak0 *
 				dmtxel (J, 0, M, Jp, 0, Mp, k, p, 0);
 
 			      gsl_complex c = gsl_complex_mul_real (Ekp, a);

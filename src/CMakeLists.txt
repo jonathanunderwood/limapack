@@ -11,8 +11,10 @@ set (common_files
   laser.c  
   laser_polzn.c  
   laser_type1.c
-  jkmarray.c
-  jmarray.c
+  jmarray_int.c
+  jmarray_double.c
+  jkmarray_int.c
+  jkmarray_double.c
   polarizability.c
   odesys.c
   molecule.c
