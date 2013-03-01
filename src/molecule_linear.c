@@ -194,7 +194,7 @@ linear_molecule_expval_calc (const molecule_t *molecule, const double *coef,
 		  c2 = gsl_complex_polar (1.0, (E - Ep) * t);
 		  c3 = gsl_complex_mul (c1, c2);
 
-		  dcmsq_mtxel_calc (J, 0, M, Jp, 0, Mp, dcmsq_mtxel);
+		  dcmsq_mtxel_calc (dcmsq_mtxel, J, 0, M, Jp, 0);
 		  dcmsq_expval_add_mtxel_weighted_complex (expval->dcmsq, dcmsq_mtxel, c3);
 		}
 	    }

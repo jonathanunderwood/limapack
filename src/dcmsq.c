@@ -62,9 +62,9 @@ dcmsq_mtxel_dtor (dcmsq_mtxel_t * dcmsq)
 }
 
 void
-dcmsq_mtxel_calc (const int J, const int K, const int M,
-		  const int Jp, const int Kp, const int Mp, 
-		  dcmsq_mtxel_t * mtxel)
+dcmsq_mtxel_calc (dcmsq_mtxel_t * mtxel, 
+		  const int J, const int K, const int M,
+		  const int Jp, const int Kp, const int Mp)
 /* Calculates the matrix elements of the squared direction cosine
    matrix elements <J K M| <A|b>^2 |Jp Kp Mp> for A = X, Y, Z and b =
    x, y, z. Integer angular momentum only at this point. */

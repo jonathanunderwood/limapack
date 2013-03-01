@@ -18,9 +18,9 @@ void dcmsq_mtxel_dtor (dcmsq_mtxel_t * dcmsq_mtxel);
 dcmsq_expval_t * dcmsq_expval_ctor ();
 void dcmsq_expval_dtor (dcmsq_expval_t * dcmsq_expval);
 
-void dcmsq_mtxel_calc (const int J, const int K, const int M,
-		       const int Jp, const int Kp, const int Mp, 
-		       dcmsq_mtxel_t *mtxel);
+void dcmsq_mtxel_calc (dcmsq_mtxel_t *mtxel,
+		       const int J, const int K, const int M,
+		       const int Jp, const int Kp, const int Mp);
 
 void dcmsq_expval_add_mtxel_weighted_complex (dcmsq_expval_t *expval, 
 					      const dcmsq_mtxel_t *mtxel,
