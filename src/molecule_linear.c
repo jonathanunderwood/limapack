@@ -194,7 +194,7 @@ linear_molecule_expval_calc (const molecule_t *molecule, const double *coef,
 		  c2 = gsl_complex_polar (1.0, (E - Ep) * t);
 		  c3 = gsl_complex_mul (c1, c2);
 
-		  dcmsq_mtxel_calc (dcmsq_mtxel, J, 0, M, Jp, 0);
+		  dcmsq_mtxel_calc (dcmsq_mtxel, J, 0, M, Jp, 0, Mp);
 		  dcmsq_expval_add_mtxel_weighted_complex (expval->dcmsq, dcmsq_mtxel, c3);
 		}
 	    }
@@ -593,7 +593,9 @@ linear_molecule_ctor(const double B, const int Jmax, const double T,
    coefmin is the minimum value for a coefficient which we bother to
    propagate in the TDSE.
 
-   poptol is the minimum initial population we bother to propagate in the TDSE.
+   poptol is the maximum allowed population in the Jmax and Jmax-1
+   manifolds during propagation. If the population in these manifolds
+   exceeds poptol the calculation will bail out.
 */
 {
   double a_par, a_perp;
@@ -631,6 +633,7 @@ linear_molecule_ctor(const double B, const int Jmax, const double T,
 			     linear_molecule_dtor);
   mol->Jmax = Jmax;
   mol->poptol = poptol;
+  mol->coefmin = coefmin;
   mol->oddwt = oddwt;
   mol->evenwt = evenwt;
 
