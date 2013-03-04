@@ -19,6 +19,7 @@
 /* Include all molecular model specific header files here only so we
    can properly parse the config file. */
 #include "molecule_linear.h"
+#include "molecule_asymrot.h"
 
 void
 molecule_dispatch_register(molecule_t * molecule,
@@ -121,6 +122,13 @@ molecule_cfg_parse_ctor (const config_t * cfg)
   if (!strcasecmp(type_string, "linear"))
     {
       molecule_t *mol = linear_molecule_cfg_parse_ctor(setting);
+      if (mol == NULL)
+	fprintf(stderr, "Error reading linear molecule config.\n");
+      return mol;
+    }
+  if (!strcasecmp(type_string, "asymrot"))
+    {
+      molecule_t *mol = asymrot_molecule_cfg_parse_ctor(setting);
       if (mol == NULL)
 	fprintf(stderr, "Error reading linear molecule config.\n");
       return mol;

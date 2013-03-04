@@ -1,4 +1,13 @@
 o Use proper data hiding in many modules eg. polarizability.c, j(k)marray.c etc
+
 o Convert all macros for converting to/from atomic units to inline functions
+
 o Run indent over all files to clean up formatting
+
 o Sort out what functions would be usefully exported and build a shared library
+
+o Be more careful about checking that populations aren't starting to
+  overflow the upper states. For example, in the asymrot case we check
+  the population levels in the Jmax and Jmax-1 manifolds, but in the
+  field it may be that lower J levels are higher in energy - the n
+  dependence is not clear. See asymrot_molecule_check_populations function.
