@@ -18,10 +18,8 @@
 #include "laser.h"
 #include "polarizability.h"
 #include "jmarray.h"
-//#include "jmarray_double.h"
 #include "jkmarray.h"
 #include "jkmarray_int.h"
-//#include "jkmarray_double.h"
 #include "memory.h"
 #include "dmtxel.h"
 #include "dcmsq.h"
@@ -44,30 +42,6 @@ typedef struct _asymrot_molecule
   polarizability_t * alpha;
   JKMarray_int_t * job_status;
 } asymrot_molecule_t;
-
-/* static void */
-/* asymrot_molecule_calc_partfn (asymrot_molecule_t * mol) */
-/* /\* Calculate the rotational partition function. *\/ */
-/* { */
-/*   int J; */
-  
-/*   mol->partfn = 0.0; */
-
-/*   for (J = 0; J <= mol->Jmax; J++) */
-/*     { */
-/*       double dim = 2.0 * J + 1.0; */
-/*       int n; */
-/*       for (n = -J; n <= J; n++) */
-/*         { */
-/*           double energy = asymrot_eigsys_eigval_get (mol->eigsys, J, n); */
-/*           mol->partfn += dim * exp (-energy / mol->kT); */
-/*         } */
-/*     } */
-
-/*   return; */
-/* } */
-
-
 
 typedef struct _asymrot_molecule_tdse_worker
 {
@@ -104,8 +78,10 @@ asymrot_molecule_expval_ctor (const molecule_t *molecule)
 }
 
 static void 
-asymrot_molecule_expval_dtor (const molecule_t *molecule, molecule_expval_t *expval)
-/* Note at present first argument is unused. Kept for generality and future use. */
+asymrot_molecule_expval_dtor (const molecule_t *molecule, 
+			      molecule_expval_t *expval)
+/* Note at present first argument is unused. Kept for generality and
+   future use. */
 {
   //  asymrot_molecule_t *mol = (asymrot_molecule_t *) molecule; 
   asymrot_molecule_expval_t *exp = (asymrot_molecule_expval_t *) expval;
@@ -137,11 +113,9 @@ asymrot_molecule_expval_fwrite (const molecule_t *molecule,
 				const molecule_expval_t *expval,
 				const hid_t *location)
 {
-  // TODO: write out data. Each type of expval as it's own path.
-  // Eg. /expval/dcmsq
-  // Also want a metadata node that contains the config?
   asymrot_molecule_expval_t *exp = (asymrot_molecule_expval_t *) expval;
   int ret = dcmsq_fwrite (exp->dcmsq, location);
+
   return ret;
 }
 
@@ -152,54 +126,6 @@ asymrot_molecule_expval_zero(const asymrot_molecule_t *molecule,
 {
   dcmsq_expval_zero(expval->dcmsq);
 }
-
-/* static void */
-/* asymrot_dcmsq_mtxel (const asymrot_molecule_t * mol, const int J, */
-/*                      const int n, const int M, const int Jp, const int np, */
-/*                      const int Mp, double mtxel[9]) */
-/* /\* Calculates the matrix elements of the DCMs between asymrot */
-/*    eigenstates. This is a separate function (i.e. not done directly in */
-/*    the loop in asymrot_molecule_expval_calc) as in the future we may */
-/*    want to cache these matrix elements for speed. *\/ */
-/* { */
-/*   int i, K; */
-/*   asymrot_eigsys_t *eigsys = mol->eigsys; */
-
-/*   for (i = 0; i < 9; i++) */
-/*     mtxel[i] = 0.0; */
-
-/*   for (K = -J; K <= J; K++) */
-/*     { */
-/*       double a = asymrot_eigsys_eigvec_get_get (eigsys, J, n, K); */
-/*       int q; */
-
-/*       if (fabs (a) < mol->eigvecmin) */
-/*         continue; */
-
-/*       for (q = -2; q <= 2; q += 2) */
-/*         { */
-/*           int Kp = K + q; */
-/*           double ap; */
-/* 	  double buff[9]; */
-
-/*           if (abs (Kp) > Jp) */
-/*             continue; */
-
-/*           ap = asymrot_eigsys_eigvec_get_get (eigsys, Jp, np, Kp); */
-
-/*           if (fabs (ap) < mol->eigvecmin) */
-/*             continue; */
-
-/*           dcmsq (J, K, M, Jp, Kp, Mp, buff); */
-
-/*           for (i = 0; i < 9; i++) */
-/*             mtxel[i] += a * ap * buff[i]; */
-/*         } */
-/*     } */
-
-/*   return; */
-/* } */
-
 
 static int
 asymrot_molecule_expval_calc (const molecule_t *molecule, const double *coef, 
