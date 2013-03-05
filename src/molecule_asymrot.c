@@ -750,6 +750,16 @@ asymrot_molecule_ctor(const double Bx, const double By, const double Bz,
   /* Number of complex coefficients. */
   mol->ncoef = JKMarray_dim (mol->Jmax);
 
+  /* Calculate eigenvalues and eigevectors. */
+  mol->eigsys = asymrot_eigsys_ctor (mol->Jmax, mol->Bx, mol->By, mol->Bz);
+  if (mol->eigsys == NULL)
+    {
+      fprintf(stderr, "%s %d: failed to calculate and store eigen system.\n",
+	      __func__, __LINE__);
+      asymrot_molecule_dtor((molecule_t *) mol);
+      return NULL;
+    }
+
   /* Calculate and store the partition function. */
   mol->partfn = 0.0;
   for (J = 0; J <= mol->Jmax; J++)
@@ -759,7 +769,7 @@ asymrot_molecule_ctor(const double Bx, const double By, const double Bz,
       for (n = -J; n <= J; n++)
 	{
 	  double dim = 2.0 * J + 1.0;
-	  double E = asymrot_molecule_energy(mol, J, n);
+	  double E = asymrot_eigsys_eigval_get (mol->eigsys, J, n);
 	  mol->partfn += dim * exp (-E / mol->kT);
 	}
     }
@@ -823,6 +833,9 @@ asymrot_molecule_dtor(molecule_t * molecule)
 
   if (mol->alpha != NULL)
     polarizability_dtor(mol->alpha);
+
+  if (mol->eigsys != NULL)
+    asymrot_eigsys_dtor (mol->eigsys);
 
   MEMORY_FREE (mol);
 }
