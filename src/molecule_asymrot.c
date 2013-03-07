@@ -17,7 +17,6 @@
 #include "molecule.h"
 #include "laser.h"
 #include "polarizability.h"
-#include "jmarray.h"
 #include "jkmarray.h"
 #include "jkmarray_int.h"
 #include "memory.h"
@@ -373,7 +372,7 @@ asymrot_molecule_get_tdse_job_coef (const molecule_t * molecule,
     coef[i] = 0.0;
 
   /* And now set the real part of the (J, n, M) coefficient to 1. */
-  coef[JMarray_idx (w->J, w->M)] = 1.0;	/* Im part is 0.0, set above. */
+  coef[JKMarray_idx (w->J, w->n, w->M)] = 1.0;	/* Im part is 0.0, set above. */
 
   return;
 }
