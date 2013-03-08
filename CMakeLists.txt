@@ -20,6 +20,7 @@ find_package(GSL REQUIRED)
 find_package(MPI)
 find_package(HDF5 REQUIRED)
 find_package(Threads)
+find_library (MATH_LIBRARIES m)
 
 ## Compiler flags
 if(CMAKE_COMPILER_IS_GNUCC)

@@ -37,7 +37,7 @@ add_executable(lima
   ${common_files}
 #  $<TARGET_OBJECTS:limalib>
 )
-target_link_libraries(lima ${LIBCONFIG_LIBRARIES} ${HDF5_LIBRARIES} gsl m)
+target_link_libraries(lima ${LIBCONFIG_LIBRARIES} ${HDF5_LIBRARIES} ${GSL_LIBRARIES} ${MATH_LIBRARIES})
 
 if (${CMAKE_USE_PTHREADS_INIT})
   target_link_libraries (lima ${CMAKE_THREAD_LIBS_INIT})
@@ -60,7 +60,7 @@ if (MPI_C_FOUND)
     ${common_files}
     )
 
-  target_link_libraries(lima_mpi ${LIBCONFIG_LIBRARIES} ${HDF5_LIBRARIES} gsl m)
+  target_link_libraries(lima_mpi ${LIBCONFIG_LIBRARIES} ${HDF5_LIBRARIES} ${GSL_LIBRARIES} ${MATH_LIBRARIES})
   # set_target_properties(limalib lima lima_mpi PROPERTIES
   #   COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}"
   #   COMPILE_DEFINITIONS "BUILD_WITH_MPI"

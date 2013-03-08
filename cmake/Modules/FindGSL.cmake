@@ -13,7 +13,7 @@
 #  GSL_INCLUDE_DIRS - where to find headers
 #  GSL_LIBRARIES - full path to the libraries
 #  GSL_LIBRARY_DIRS, the directory where the PLplot library is found.
- 
+# 
 #  CMAKE_GSL_CXX_FLAGS  = Unix compiler flags for GSL, essentially "`gsl-config --cxxflags`"
 #  GSL_LINK_DIRECTORIES = link directories, useful for rpath on Unix
 #  GSL_EXE_LINKER_FLAGS = rpath on Unix
@@ -89,9 +89,9 @@ else( WIN32 AND NOT CYGWIN AND NOT MSYS )
         string( REGEX REPLACE "-I[^;]+;" ""
           GSL_CFLAGS "${GSL_CFLAGS}")
  
-        message("GSL_DEFINITIONS=${GSL_DEFINITIONS}")
-        message("GSL_INCLUDE_DIRS=${GSL_INCLUDE_DIRS}")
-        message("GSL_CFLAGS=${GSL_CFLAGS}")
+#        message("GSL_DEFINITIONS=${GSL_DEFINITIONS}")
+#        message("GSL_INCLUDE_DIRS=${GSL_INCLUDE_DIRS}")
+#        message("GSL_CFLAGS=${GSL_CFLAGS}")
       else( RET EQUAL 0 )
         set( GSL_FOUND FALSE )
       endif( RET EQUAL 0 )
@@ -119,7 +119,7 @@ else( WIN32 AND NOT CYGWIN AND NOT MSYS )
       MARK_AS_ADVANCED(
         GSL_CFLAGS
       )
-      message( STATUS "Using GSL from ${GSL_PREFIX}" )
+#      message( STATUS "Using GSL from ${GSL_PREFIX}" )
     else( GSL_CONFIG_EXECUTABLE )
       message( STATUS "FindGSL: gsl-config not found.")
     endif( GSL_CONFIG_EXECUTABLE )
