@@ -504,11 +504,13 @@ asymrot_molecule_tdse_rhs (const molecule_t * molecule,
 
 	  for (J = 0; J <= Jmax; J++)
 	    {
-	      int Jpmin = J - 2, Jpmax = J + 2, M;
+	      int Jpmin = J - 2;
+	      int Jpmax, M;
 
 	      if (Jpmin < 0)
 		Jpmin = 0;
-
+	      
+	      Jpmax = J + 2;
 	      if (Jpmax > Jmax)
 		Jpmax = Jmax;
 
