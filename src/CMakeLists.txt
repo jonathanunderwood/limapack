@@ -1,5 +1,7 @@
-# Make sure hdf5 is properly used
 include_directories(${HDF5_INCLUDE_DIRS})
+include_directories(${GSL_INCLUDE_DIRS})
+include_directories(${libconfig_INCLUDE_DIRS})
+
 add_definitions(${HDF5_DEFINITIONS})
 
 set (common_files
@@ -38,7 +40,7 @@ if (${CMAKE_USE_PTHREADS_INIT})
 endif ()
 
 
-## Set up options for compiling against MPI if present
+### Set up options for compiling against MPI if present
 if (MPI_C_FOUND)
   add_executable(lima_mpi
     lima_mpi.c
