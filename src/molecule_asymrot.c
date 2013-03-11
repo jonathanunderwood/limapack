@@ -352,10 +352,6 @@ asymrot_molecule_set_tdse_job_done (molecule_t * molecule,
   JKMarray_int_set (m->job_status, w->J, w->n, w->M, __DONE);
 }
 
-#undef __TODO
-#undef __STARTED
-#undef __DONE
-
 static void
 asymrot_molecule_get_tdse_job_coef (const molecule_t * molecule,
 				    const molecule_tdse_worker_t * worker,
@@ -796,6 +792,19 @@ asymrot_molecule_ctor (const double Bx, const double By, const double Bz,
       return NULL;
     }
 
+  for (J = 0; J <= mol->Jmax; J++)
+    {
+      int n;
+
+      for (n = -J; n <= J; n++)
+	{
+	  int M;
+
+	  for (M = -J; M <= J; M++)
+	    JKMarray_int_set (mol->job_status, J, n, M, __TODO);
+	}
+    }
+
   return mol;
 }
 
@@ -852,3 +861,8 @@ asymrot_molecule_dtor (molecule_t * molecule)
 
   MEMORY_FREE (mol);
 }
+
+#undef __TODO
+#undef __STARTED
+#undef __DONE
+
