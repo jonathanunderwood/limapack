@@ -36,7 +36,6 @@ typedef struct _asymrot_molecule
   double eigvecmin;
   int Jmax;
   int ncoef;
-  int nexpval;
   asymrot_eigsys_t *eigsys;
   polarizability_t *alpha;
   JKMarray_int_t *job_status;

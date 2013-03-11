@@ -36,7 +36,6 @@ struct _linear_molecule
   polarizability_t * alpha;
   int Jmax;
   int ncoef;
-  int nexpval;
   JMarray_int_t * job_status;
 };
 
