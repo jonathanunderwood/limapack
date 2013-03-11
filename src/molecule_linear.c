@@ -305,10 +305,6 @@ linear_molecule_set_tdse_job_done (molecule_t *molecule,
   //w->parent.state = TW_WAITING;
 }
 
-#undef __TODO
-#undef __STARTED
-#undef __DONE
-
 static void
 linear_molecule_get_tdse_job_coef(const molecule_t *molecule, 
 				  const molecule_tdse_worker_t *worker,
@@ -676,6 +672,14 @@ linear_molecule_ctor(const double B, const int Jmax, const double T,
       return NULL;
     }
 
+  for (J = 0; J <= mol->Jmax; J++)
+    {
+      int M;
+
+      for (M = -J; M <= J; M++)
+	JMarray_int_set (mol->job_status, J, M, __TODO);
+    }
+
   return mol;
 }
 
@@ -723,5 +727,9 @@ linear_molecule_dtor(molecule_t * molecule)
 
   MEMORY_FREE (mol);
 }
+
+#undef __TODO
+#undef __STARTED
+#undef __DONE
 
 
