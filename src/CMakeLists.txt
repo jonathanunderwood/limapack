@@ -17,11 +17,12 @@ set (common_files
   jkmarray_double.c
   polarizability.c
   odesys.c
-  molecule.c
-  molecule_linear.c
   dmtxel.c
   dcmsq.c
   slurp.c
+  molecule.c
+  molecule_linear.c
+  molecule_symrot.c
   asymrot_eigsys.c
   molecule_asymrot.c
 )
