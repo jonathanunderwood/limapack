@@ -1,0 +1,51 @@
+LIMAPACK - calculating molecular axis alignment in laser fields
+================================================================
+
+LIMAPACK is a software package for calculating the molecular axis
+alignment resulting from exposing molecules to intense non-resonant
+laser fields. LIMAPACK is an evolution of code written over several
+years by Jonathan Underwood. The present focus is on making the code
+available in a modular form such that it becomes a platform for
+collaborative development by interested parties. As such this involves
+a large cleanup and re-factoring effort. Once this phase is complete,
+new features will be added.
+
+Current features include:
+
+o Can optionally use MPI for running on large clusters
+o Uses pthreads for multi-threading on a single machine with multiple 
+  CPU cores
+o Able to treat linear, symmetric top, and asymmetric top molecules
+o Able to treat arbitrary laser fields
+
+Installation
+=============
+Installation instructions can be found in the INSTALL file included
+with the software.
+
+Licensing
+==========
+The software is made available under the terms of the GNU GENERAL
+PUBLIC LICENSE version 3. Please see the COPYING file for further
+information.
+
+Mailing list
+=============
+Discussions about the use and development of LIMAPACK happen on the
+LIMAPACK mailing list, hosted on Google Groups:
+
+https://groups.google.com/d/forum/limapack
+
+To start a discussion on the mailing list send mail to:
+
+limapcack@googlegroups.com
+
+Development
+============
+The project welcomes all contributions of code and documentation. 
+
+The development of LIMAPACK is coordinated through github. The project
+repository can be found here:
+
+https://github.com/jonathanunderwood/limapack/
+
