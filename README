@@ -19,18 +19,18 @@ o Able to treat linear, symmetric top, and asymmetric top molecules
 o Able to treat arbitrary laser fields
 
 Installation
-=============
+============
 Installation instructions can be found in the INSTALL file included
 with the software.
 
 Licensing
-==========
+=========
 The software is made available under the terms of the GNU GENERAL
 PUBLIC LICENSE version 3. Please see the COPYING file for further
 information.
 
 Mailing list
-=============
+============
 Discussions about the use and development of LIMAPACK happen on the
 LIMAPACK mailing list, hosted on Google Groups:
 
@@ -38,10 +38,10 @@ https://groups.google.com/d/forum/limapack
 
 To start a discussion on the mailing list send mail to:
 
-limapcack@googlegroups.com
+limapack@googlegroups.com
 
 Development
-============
+===========
 The project welcomes all contributions of code and documentation. 
 
 The development of LIMAPACK is coordinated through github. The project
