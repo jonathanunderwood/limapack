@@ -127,7 +127,7 @@ laser_collection_cfg_parse_ctor (const config_t * cfg)
 	      return NULL;
 	    }
 
-	  ret = config_setting_lookup_int(this_laser, "type", (long int *)(&type)) ;
+	  ret = config_setting_lookup_int(this_laser, "type", (int *)(&type)) ;
 	  
 	  if (ret == CONFIG_FALSE)
 	    {
