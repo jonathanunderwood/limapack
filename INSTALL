@@ -1,0 +1,105 @@
+Supported platforms
+===================
+LIMAPACK was developed under the GNU/Linux operating system and so
+primarily supports that family of operating systems. Other unix like
+platforms should also work, but this has not been tested. Patches
+providing support for other operating systems are very welcome.
+
+Prerequisites
+==============
+LIMAPACK requires the following libraries:
+
+o libconfig (http://www.hyperrealm.com/libconfig/)
+  Version 1.4.x. Version 1.4.8 was used for development
+  
+o gsl (http://www.gnu.org/gsl)
+  Version 1.15 was used for development. Any recent version should
+  work.
+
+o hdf5 (http://www.hdfgroup.org/HDF5/)
+  Version 1.8.x is required. 1.8.8 was used for development.
+
+o Optionally an MPI implementation.
+
+  If you require the MPI enabled version of the code in order to use
+  LIMAPACK across a cluster of machines you'll need to install an MPI
+  implementation. OpenMPI is recommended
+  (http://www.openmpi.org). OpenMPI 1.5.4 was used during development
+  though any recent version should work. MPICH2 should also work fine,
+  but hasn't been tested.
+
+In order to build LIMAPACK from source you'll need:
+o cmake (http://www.cmake.org)
+  Version 2.8 is required to build the code.
+
+o GCC compiler (http://www.gcc.gnu.org) 
+  Version 4.7.2 was used for development, but any recent version
+  should work.
+
+o GNU Make (http://www.gnu.org/software/make)
+  Version 3.82 was used for development, but any recent version 
+  should work.
+
+These prerequisites can either be installed system wide, or locally in
+the home directory of the user building the code.
+
+Distribution specific prerequisite installation
+-----------------------------------------------
+On a Fedora system the following command should install these
+pre-requisites:
+    yum install cmake gsl-devel libconfig-devel hdf5-devel openmpi-devel gcc make
+
+
+Manual insallation of pre-requisites
+------------------------------------
+The following steps would allow you to build local copies of the
+required libraries under your home directory:
+
+1) mkdir -p ${HOME}/local/{lib,include,bin,build}
+2) cd ${HOME}/local/build
+
+If you need a local build of libconfig:
+3) wget http://www.hyperrealm.com/libconfig/libconfig-1.4.8.tar.gz
+4) tar -zxf libconfig-1.4.8.tar.gz && cd libconfig-1.4.8
+5) ./configure --prefix=${HOME}/local && make install
+
+If you need a local install of hdf5:
+6) wget http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.8/src/hdf5-1.8.8.tar.bz2
+7) tar -jxf hdf5-1.8.8.tar.bz2 && cd hdf5-1.8.8
+8) ./configure --prefix=${HOME}/local && make install
+
+If you need a local install of gsl:
+9) wget ftp://ftp.gnu.org/gnu/gsl/gsl-1.15.tar.gz
+10) tar -zxf gsl-1.15.tar.gz
+11) ./configure --prefix=${HOME}/local && make install
+
+At this point any needed libraries should be available under
+${HOME}/local. You'll need to make sure the libraries are found by the
+linker at runtime by setting the LD_LIBRARY_PATH environment variable:
+
+export LD_LIBRARY_PATH=${HOME}/local/lib:$LD_LIBRARY_PATH
+
+Building LIMAPACK
+=================
+Best practice is to perform an out-of-tree build of the source
+code. For example, after chaninging to the directory containing the
+LIMAPACK source code:
+    mkdir build
+    cd build
+    cmake ../
+    make
+
+Assuming all is well with the pre-requisites and tool chain on the
+system, this will produce the executables in the build directory.
+
+If you have locally installed libraries that you wish cmake to use in
+preference to (or due to deficiencies of) the system wide libraries,
+you can inform cmake of their location by setting the environment
+variable CMAKE_PREFIX_PATH eg.
+    mkdir build
+    cd build
+    CMAKE_PREFIX_PATH=${HOME}/local cmake ../
+    make
+
+Further information can be found at: http://techbase.kde.org/Development/Tutorials/CMake
+
