@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 2.8)
 
 ### Project information
-project (limapack)
+project (limapack C)
 set (LIMAPACK_MAJOR_VERSION "0")
 set (LIMAPACK_MINOR_VERSION "1")
 set (LIMAPACK_PATCH_VERSION "0")
