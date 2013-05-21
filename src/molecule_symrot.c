@@ -24,7 +24,7 @@
 #include "au.h"
 #include "molecule_symrot.h"
 
-typedef struct _symrot_molecule
+struct _symrot_molecule
 {
   molecule_t parent;
   double B_perp, B_par;
@@ -37,7 +37,7 @@ typedef struct _symrot_molecule
   int nexpval;
   polarizability_t *alpha;
   JKMarray_int_t *job_status;
-} symrot_molecule_t;
+};
 
 typedef struct _symrot_molecule_tdse_worker
 {
