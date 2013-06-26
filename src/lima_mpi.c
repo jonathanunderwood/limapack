@@ -31,7 +31,7 @@ main(int argc, char *argv[])
   if (argc < 3)
     {
       if (rank == 0)
-	fprintf (stderr, "Useage: %s <parameter file> <output file>.\n",
+	fprintf (stderr, "Useage: mpirun -np <number of processes> %s <parameter file> <output file>.\n",
 		 argv[0]);
       MPI_Finalize();
       exit (-1);
