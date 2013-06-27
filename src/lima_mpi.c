@@ -51,7 +51,7 @@ main(int argc, char *argv[])
     {
       if (stat(argv[2], &file_status) == 0)
 	{
-	  fprintf (stderr, "Output filename already exists. Exiting.\n");
+	  fprintf (stderr, "<%d::%s>: Output filename already exists. Exiting.\n", rank, host);
 	  MPI_Abort (MPI_COMM_WORLD, -1);
 	  exit (-1);
 	}
