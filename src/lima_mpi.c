@@ -20,22 +20,29 @@ main(int argc, char *argv[])
   int cfg_file_buff_size;
   char *cfg_file_buff;
   struct stat file_status;
+  int nprocs;
 
   /* Initialize MPI */
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Get_processor_name(host, &host_length);
+  MPI_Comm_size (MPI_COMM_WORLD, &nprocs);
 
-  fprintf(stdout, "<%d::%s> Initiliasing.\n", rank, host);
-
-  if (argc < 3)
+  if (argc < 3 || nprocs < 2)
     {
       if (rank == 0)
-	fprintf (stderr, "Useage: mpirun -np <number of processes> %s <parameter file> <output file>.\n",
-		 argv[0]);
-      MPI_Finalize();
+	{
+	  fprintf (stderr, "Useage: mpirun -np NPROCS %s PARAMFILE OUTFILE.\n",
+		   argv[0]);
+	  fprintf (stderr, "NPROCS     number of MPI processes to use. Must be >= 2\n");
+	  fprintf (stderr, "PARAMFILE  parameter file\n");
+	  fprintf (stderr, "OUTFILE    output file\n");
+	}
+      MPI_Finalize ();
       exit (-1);
     }
+
+  fprintf(stdout, "<%d::%s> Initiliasing.\n", rank, host);
 
   /* Read config file if we're the master MPI process and distribute
      to other processes - this means that the config file does not
