@@ -754,7 +754,14 @@ odesys_parse_cfg_from_buffer_ctor (const char *buffer)
       return NULL;
     }
 
-  odesys_cfg_parse (odesys, &cfg);
+  if (odesys_cfg_parse (odesys, &cfg) < 0)
+    {
+      fprintf (stderr, "%s %d: Failed to parse odesys information.\n",
+	       __func__, __LINE__);
+      odesys_dtor (odesys);
+      config_destroy (&cfg);
+      return NULL;
+    }
 
   config_destroy (&cfg);
 
