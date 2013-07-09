@@ -19,7 +19,7 @@ main(int argc, char *argv[])
 {
   odesys_t *odesys = NULL;
   struct stat file_status;
-  int nthreads = 0;
+  int nthreads = 1;
   char *paramfile, *outfile;
 
   /* Parse command line. */
@@ -88,7 +88,7 @@ main(int argc, char *argv[])
       return -1;
     }
 
-  if (nthreads == 0)
+  if (nthreads == 1)
     odesys_tdse_propagate_simple (odesys);
   else
     odesys_tdse_propagate_threaded(odesys, nthreads);
