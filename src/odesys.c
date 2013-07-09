@@ -218,9 +218,6 @@ odesys_expval_ctor (const odesys_t * ode,
       return NULL;
     }
 
-  fprintf (stdout, "npoints: %d\n", npoints);
-  fflush (stdout);
-
   for (i = 0; i < npoints; i++)
     {
       expval->data[i] = molecule->expval_ctor (molecule);
@@ -433,7 +430,6 @@ odesys_expval_windows_ctor (const int nwindows)
       return NULL;
     }
 
-  fprintf (stdout, "nwindows: %d\n", nwindows);
   if (MEMORY_ALLOC_N (w->window, nwindows) != 0)
     {
       MEMORY_OOMERR;
