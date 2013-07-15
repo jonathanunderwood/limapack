@@ -1,45 +1,60 @@
+/* gcc -O2 test_jmarray.c  ../src/memory.c -I ../src */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include "jmarray.h"
+#include "jmarray_int.h"
+#include "jmarray_int.c"
 
-#define JMAX 5
+#define TWO_JMAX_INT 20
+#define TWO_JMAX_HALF_INT 21
 
 int
 main ()
 {
-  JMarray_t *arr;
-  int j, m;
-  unsigned long i;
+  int two_jmin;
 
-  arr = JMarray_ctor (JMAX);
-  if (arr == NULL)
+  for (two_jmin = 0; two_jmin <= 1; two_jmin++)
     {
-      fprintf (stderr, "Error: failed to allocate jmarray\n");
-      exit (EXIT_FAILURE);
-    }
+      JMarray_int_t *arr;
+      int two_j, two_m, two_jmax;
+      unsigned long i;
+      
+      if (two_jmin == 0)
+	two_jmax = TWO_JMAX_INT;
+      else
+	two_jmax = TWO_JMAX_HALF_INT;
 
-  /* This will throw errors if run under valgrind and there's something wrong
-     with the memory allocation. */
-  i = 0;
-  for (j = 0; j <= JMAX; j++)
-      for (m = -j; m <= j; m++)
+      arr = JMarray_int_ctor (two_jmax);
+      if (arr == NULL)
 	{
-	  int v, w;
-	  arr->set (arr, j, m, (double) i);
-	  v = arr->get (arr, j, m);
-	  w = arr->data[i];
-	  if ((i != (int) v) || i != (int) w)
-	    {
-	      fprintf (stderr,
-		       "Error with array indexing for (j=%d, m=%d). i: %d v: %d w: %d\n",
-		       j, m, (int) i, (int)v, (int)w);
-	      JMarray_dtor (arr);
-	      exit (EXIT_FAILURE);
-	    }
-	  i++;
+	  fprintf (stderr, "Error: failed to allocate jmarray\n");
+	  exit (EXIT_FAILURE);
 	}
-
-  JMarray_dtor (arr);
+      
+      /* This will throw errors if run under valgrind and there's
+	 something wrong with the memory allocation. */
+      i = 0;
+      for (two_j = two_jmin; two_j <= two_jmax; two_j += 2)
+	for (two_m = -two_j; two_m <= two_j; two_m += 2)
+	  {
+	    int v, w, x;
+	    JMarray_int_set (arr, two_j, two_m, i);
+	    v = arr->get (arr, two_j, two_m);
+	    w = arr->data[i];
+	    x = JMarray_idx (two_j, two_m);
+	    if ((i != v || i != w || i != x))
+	      {
+		fprintf (stderr,
+			 "Error with array indexing for (two_j=%d, two_m=%d). i: %d v: %d w: %d x: %d\n",
+			 two_j, two_m, i, v, w, x);
+		JMarray_int_dtor (arr);
+		exit (EXIT_FAILURE);
+	      }
+	    i++;
+	  }
+      JMarray_int_dtor (arr);
+    }
 
   return 0;
 }

@@ -5,18 +5,18 @@
 
 struct _JMarray_@@TYPE@@
 {
-  @@TYPE@@ (*get) (struct _JMarray_@@TYPE@@ * self, const int J, const int M);
-  void (*set) (struct _JMarray_@@TYPE@@ * self, const int J, const int M,
+  @@TYPE@@ (*get) (struct _JMarray_@@TYPE@@ * self, const int two_J, const int two_M);
+  void (*set) (struct _JMarray_@@TYPE@@ * self, const int two_J, const int two_M,
 	       const @@TYPE@@ val);
   @@TYPE@@ *data;
-  int Jmax;
+  int two_Jmax;
   int dim;
 };
 
 JMarray_@@TYPE@@_t *
-JMarray_@@TYPE@@_ctor (const int Jmax)
+JMarray_@@TYPE@@_ctor (const int two_Jmax)
 {
-  unsigned int dim = JMarray_dim (Jmax);
+  unsigned int dim = JMarray_dim (two_Jmax);
   JMarray_@@TYPE@@_t * a;
 
   if (MEMORY_ALLOC(a) < 0)
@@ -34,7 +34,8 @@ JMarray_@@TYPE@@_ctor (const int Jmax)
 
   a->get = &JMarray_@@TYPE@@_get;
   a->set = &JMarray_@@TYPE@@_set;
-  a->Jmax = Jmax;
+
+  a->two_Jmax = two_Jmax;
   a->dim = dim;
 
   return a;
@@ -48,18 +49,15 @@ JMarray_@@TYPE@@_dtor (JMarray_@@TYPE@@_t * a)
 }
 
 @@TYPE@@
-JMarray_@@TYPE@@_get (JMarray_@@TYPE@@_t * a, const int J, const int M)
+JMarray_@@TYPE@@_get (JMarray_@@TYPE@@_t * a, const int two_J, const int two_M)
 {
-  int idx = JMarray_idx (J, M);
-  return a->data[idx];
+  return a->data[JMarray_idx(two_J, two_M)];
 }
 
 void
-JMarray_@@TYPE@@_set (JMarray_@@TYPE@@_t * a, const int J, const int M, const @@TYPE@@ val)
+JMarray_@@TYPE@@_set (JMarray_@@TYPE@@_t * a, const int two_J, const int two_M, const @@TYPE@@ val)
 {
-  int idx = JMarray_idx (J, M);
-  a->data[idx] = val;
+  a->data[JMarray_idx(two_J, two_M)] = val;
 }
-
 
 
