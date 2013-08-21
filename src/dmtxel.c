@@ -2,9 +2,10 @@
 
 #include <stdlib.h>
 #include <math.h>
-#include <gsl/gsl_math.h>
 #include <gsl/gsl_sf_coupling.h>
 #include "dmtxel.h"
+
+#define __IS_ODD(n) ((n) & 1)
 
 /* If DMTXEL_DEBUG is defined, this function performs the normal
    angular momentum checks that would be performed in a sensible 3j
@@ -16,7 +17,6 @@
 #ifdef DMTXEL_DEBUG
 #include <stdio.h>
 #define __NAN 0.0/0.0		/* Not entirely portable. */
-#define __IS_ODD(n) ((n) & 1)
 #endif /* DMTXEL_DEBUG */
 
 double
@@ -78,7 +78,6 @@ dmtxel (const int two_J, const int two_K, const int two_M,
       fprintf (stderr, "dmtxel warning: 2(J+k+Jp) is odd.\n");
       return 0.0;
     }
-#undef __IS_ODD
 #undef __NAN
 #endif /* DMTXEL_DEBUG */
 
@@ -86,8 +85,9 @@ dmtxel (const int two_J, const int two_K, const int two_M,
     gsl_sf_coupling_3j (two_J, two_k, two_Jp, two_M, two_p, -two_Mp) *
     gsl_sf_coupling_3j (two_J, two_k, two_Jp, two_K, two_q, -two_Kp);
 
-  if (GSL_IS_ODD (two_Mp - two_Kp))	/* phase */
+  if (__IS_ODD (two_Mp - two_Kp))	/* phase */
     return -a;
   else
     return a;
 }
+#undef __IS_ODD
