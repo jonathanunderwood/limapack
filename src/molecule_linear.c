@@ -34,7 +34,7 @@ struct _linear_molecule
   double poptol;
   double oddwt, evenwt;
   polarizability_t * alpha;
-  int Jmax;
+  int two_Jmax;
   int ncoef;
   JMarray_int_t * job_status;
 };
@@ -42,7 +42,7 @@ struct _linear_molecule
 typedef struct _linear_molecule_tdse_worker
 {
   molecule_tdse_worker_t parent;
-  int J, M;
+  int two_J, two_M;
 } linear_molecule_tdse_worker_t;
 
 typedef struct _linear_molecule_expval
@@ -53,8 +53,8 @@ typedef struct _linear_molecule_expval
 
 static molecule_expval_t *
 linear_molecule_expval_ctor (const molecule_t *molecule)
+/* Note at present first argument is unused. Kept for generality and future use. */
 {
-  //  linear_molecule_t *mol = (linear_molecule_t *) molecule;
   linear_molecule_expval_t *expval = NULL;
 
   if (MEMORY_ALLOC(expval) < 0)
@@ -77,7 +77,6 @@ static void
 linear_molecule_expval_dtor (const molecule_t *molecule, molecule_expval_t *expval)
 /* Note at present first argument is unused. Kept for generality and future use. */
 {
-  //  linear_molecule_t *mol = (linear_molecule_t *) molecule; 
   linear_molecule_expval_t *exp = (linear_molecule_expval_t *) expval;
 
   dcmsq_expval_dtor (exp->dcmsq);
@@ -86,19 +85,22 @@ linear_molecule_expval_dtor (const molecule_t *molecule, molecule_expval_t *expv
 
 
 static inline double
-linear_molecule_energy(const linear_molecule_t *mol, const int J)
+linear_molecule_energy(const linear_molecule_t *mol, const int two_J)
 {
+  double J = 0.5 * two_J;
   return mol->B * J * (J + 1);
 }
 
 static double
 linear_molecule_boltzmann_statwt(const linear_molecule_t * mol,
-				 const int J)
+				 const int two_J)
 /* Returns the statistical weight of a single (J,M) state in a
-   Boltzmann distribution, hence no (2J+1) degeneracy pre-factor. */
+   Boltzmann distribution, hence no (2J+1) degeneracy pre-factor. 
+   FIXME: At present this deals only with integer angular momenta.
+*/
 { 
-  double wt = GSL_IS_ODD (J) ? mol->oddwt : mol->evenwt; 
-  double E = linear_molecule_energy (mol, J); 
+  double wt = GSL_IS_ODD (two_J / 2) ? mol->oddwt : mol->evenwt; 
+  double E = linear_molecule_energy (mol, two_J); 
 
   return wt * exp (-E / mol->kT) / mol->partfn; 
 }
@@ -108,9 +110,7 @@ linear_molecule_expval_fwrite (const molecule_t *molecule,
 			       const molecule_expval_t *expval,
 			       const hid_t *location)
 {
-  // TODO: write out data. Each type of expval as it's own path.
-  // Eg. /expval/dcmsq
-  // Also want a metadata node that contains the config?
+  // TODO: want a metadata node that contains the config?
   linear_molecule_expval_t *exp = (linear_molecule_expval_t *) expval;
   int ret = dcmsq_fwrite (exp->dcmsq, location);
   return ret;
@@ -142,21 +142,21 @@ linear_molecule_expval_calc (const molecule_t *molecule, const double *coef,
   /* Initialize all expectation values to zero. */
   linear_molecule_expval_zero(mol, expval);
 
-  for (J = 0; J <= mol->Jmax; J++)
+  for (two_J = 0; two_J <= mol->two_Jmax; two_J += 2)
     {
-      int Jpmin = J - 2, Jpmax = J + 2, M;
+      int two_Jpmin = two_J - 4, two_Jpmax = two_J + 4, two_M;
 
-      if (Jpmin < 0)
-	Jpmin = 0;
+      if (two_Jpmin < 0)
+	two_Jpmin = 0;
 
-      if (Jpmax > mol->Jmax)
-	Jpmax = mol->Jmax;
+      if (two_Jpmax > mol->two_Jmax)
+	two_Jpmax = mol->two_Jmax;
 
-      for (M = -J; M <= J; M++)
+      for (two_M = -two_J; two_M <= two_J; two_M += 2)
 	{
-	  double E = linear_molecule_energy (mol, J);
-	  int i1 = JMarray_idx (J, M);
-	  int Jp;
+	  double E = linear_molecule_energy (mol, two_J);
+	  int i1 = JMarray_idx (two_J, two_M);
+	  int two_Jp;
 	  gsl_complex A;
 
 	  GSL_SET_COMPLEX (&A, coef_r[i1], coef_i[i1]);
@@ -166,23 +166,23 @@ linear_molecule_expval_calc (const molecule_t *molecule, const double *coef,
 
 	  A = gsl_complex_conjugate (A);
 
-	  for (Jp = Jpmin; Jp <= Jpmax; Jp++)
+	  for (two_Jp = two_Jpmin; two_Jp <= two_Jpmax; Jp += 2)
 	    {
-	      int p;
+	      int two_p;
 
-	      for (p = -2; p <= 2; p++)
+	      for (two_p = -4; two_p <= 4; two_p += 2)
 		{
-		  int Mp = M + p;
+		  int two_Mp = two_M + two_p;
 		  double Ep;
 		  int i2;
 		  gsl_complex Ap, c1, c2, c3;
 
 
-		  if (abs (Mp) > Jp)
+		  if (abs (two_Mp) > two_Jp)
 		    continue;
 
-		  Ep = linear_molecule_energy (mol, Jp);
-		  i2 = JMarray_idx (Jp, Mp);
+		  Ep = linear_molecule_energy (mol, two_Jp);
+		  i2 = JMarray_idx (two_Jp, two_Mp);
 
 		  GSL_SET_COMPLEX (&Ap, coef_r[i2], coef_i[i2]);
 
@@ -193,7 +193,7 @@ linear_molecule_expval_calc (const molecule_t *molecule, const double *coef,
 		  c2 = gsl_complex_polar (1.0, (E - Ep) * t);
 		  c3 = gsl_complex_mul (c1, c2);
 
-		  dcmsq_mtxel_calc (dcmsq_mtxel, J, 0, M, Jp, 0, Mp);
+		  dcmsq_mtxel_calc (dcmsq_mtxel, two_J, 0, two_M, two_Jp, 0, two_Mp);
 		  dcmsq_expval_add_mtxel_weighted_complex (expval->dcmsq, dcmsq_mtxel, c3);
 		}
 	    }
@@ -209,9 +209,9 @@ static void
 linear_molecule_expval_add_weighted (const molecule_t *molecule, 
 				     molecule_expval_t *a, const molecule_expval_t *b,
 				     const double weight)
-/* Perform a = a + (weight * b) */ 
+/* Perform a = a + (weight * b). At present first argument is unused,
+   but kept for future use. */ 
 {
-  //  linear_molecule_t *mol = (linear_molecule_t *) molecule;
   linear_molecule_expval_t *aa = (linear_molecule_expval_t *) a;
   linear_molecule_expval_t *bb = (linear_molecule_expval_t *) b;
   
@@ -224,8 +224,8 @@ static int
 linear_molecule_expval_mpi_send(const molecule_t *molecule,
 				const molecule_expval_t *expval, 
 				int dest, int tag, MPI_Comm comm)
+/* First argument presently unused. */
 {
-  //  const linear_molecule_t *mol = (linear_molecule_expval_t *) molecule;
   const linear_molecule_expval_t *ev = (linear_molecule_expval_t *) expval;
   int ret;
 
@@ -238,8 +238,8 @@ static int
 linear_molecule_expval_mpi_recv(const molecule_t *molecule, 
 				molecule_expval_t *expval, 
 				int dest, int tag, MPI_Comm comm)
+  /* First argument presently unused. */
 {
-  //  linear_molecule_t *mol = (linear_molecule_expval_t *) molecule;
   linear_molecule_expval_t *ev = (linear_molecule_expval_t *) expval;
   int ret;
   
@@ -261,28 +261,27 @@ linear_molecule_get_tdse_job(molecule_t *molecule,
   linear_molecule_t *mol = (linear_molecule_t *) molecule;
   linear_molecule_tdse_worker_t *w = 
     (linear_molecule_tdse_worker_t *) worker;
-  int J, M;
+  int two_J, two_M;
 
-  for (J = 0; J <= mol->Jmax; J++)
-    for (M = -J; M <= J; M++)
+  for (two_J = 0; two_J <= mol->two_Jmax; J += 2)
+    for (two_M = -two_J; two_M <= two_J; two_M += 2)
       {
 	int status = 
-	  JMarray_int_get(mol->job_status, J, M);
+	  JMarray_int_get(mol->job_status, two_J, two_M);
 	if (status == __TODO)
 	  {
-	    double wt = linear_molecule_boltzmann_statwt(mol, J);
+	    double wt = linear_molecule_boltzmann_statwt(mol, two_J);
 
-	    //	    fprintf(stdout, "J: %d M: %d wt: %g\n", J, M, wt); 
 	    if (wt < mol->poptol) /* Population in this state negligible */
-		JMarray_int_set(mol->job_status, J, M, __DONE);
+		JMarray_int_set(mol->job_status, two_J, two_M, __DONE);
 	    else
 	      {
-		JMarray_int_set(mol->job_status, J, M, __STARTED);
-		w->J = J;
-		w->M = M;
+		JMarray_int_set(mol->job_status, two_J, two_M, __STARTED);
+		w->two_J = two_J;
+		w->two_M = two_M;
 		snprintf(w->parent.description, 
 			 MOLECULE_TDSE_WORKER_DESCRIPTION_LENGTH, 
-			 "J: %d M: %d", J, M);
+			 "J: %.1f M: %.1f", two_J * 0.5, two_M * 0.5);
 		return 0;
 	      }
 	  }
@@ -301,8 +300,7 @@ linear_molecule_set_tdse_job_done (molecule_t *molecule,
   linear_molecule_tdse_worker_t *w = 
     (linear_molecule_tdse_worker_t *) worker;
 
-  JMarray_int_set(m->job_status, w->J, w->M, __DONE);
-  //w->parent.state = TW_WAITING;
+  JMarray_int_set(m->job_status, w->two_J, w->two_M, __DONE);
 }
 
 static void
@@ -320,7 +318,7 @@ linear_molecule_get_tdse_job_coef(const molecule_t *molecule,
     coef[i] = 0.0;
 		
   /* And now set the real part of the (J, M) coefficient to 1. */
-  coef[JMarray_idx (w->J, w->M)] = 1.0; /* Im part is 0.0, set above. */
+  coef[JMarray_idx (w->two_J, w->two_M)] = 1.0; /* Im part is 0.0, set above. */
 
   return;
 }
@@ -333,7 +331,7 @@ linear_molecule_get_tdse_job_weight(const molecule_t *molecule,
   linear_molecule_tdse_worker_t *w = 
     (linear_molecule_tdse_worker_t *) worker;
   
-  return linear_molecule_boltzmann_statwt(mol, w->J);
+  return linear_molecule_boltzmann_statwt(mol, w->two_J);
 }
 
 
@@ -349,15 +347,6 @@ linear_molecule_tdse_worker_ctor(const molecule_t *molecule)
       MEMORY_OOMERR;
       return NULL;
     }
-
-  //  worker->parent.state = TW_WAITING;
-
-  /* worker->parent = molecule_tdse_worker_ctor(); */
-  /* if (worker->parent == NULL) */
-  /*   { */
-  /*     MEMORY_FREE(worker); */
-  /*     return NULL; */
-  /*   } */
 
   return (molecule_tdse_worker_t *) worker;
 }
@@ -389,8 +378,8 @@ linear_molecule_tdse_worker_mpi_send (const molecule_t *self,
   ret = MPI_Send ((void *) &(w->parent.description), 
 		  MOLECULE_TDSE_WORKER_DESCRIPTION_LENGTH, 
 		  MPI_CHAR, dest, tag, comm);
-  ret += MPI_Send ((void *) &(w->J), 1, MPI_INT, dest, tag, comm);
-  ret += MPI_Send ((void *) &(w->M), 1, MPI_INT, dest, tag, comm);
+  ret += MPI_Send ((void *) &(w->two_J), 1, MPI_INT, dest, tag, comm);
+  ret += MPI_Send ((void *) &(w->two_M), 1, MPI_INT, dest, tag, comm);
 
   return ret;
 }
@@ -407,8 +396,8 @@ linear_molecule_tdse_worker_mpi_recv (const molecule_t *self,
   ret = MPI_Recv ((void *) &(w->parent.description), 
 		  MOLECULE_TDSE_WORKER_DESCRIPTION_LENGTH, 
 		  MPI_CHAR, dest, tag, comm, MPI_STATUS_IGNORE);
-  ret += MPI_Recv (&(w->J), 1, MPI_INT, dest, tag, comm, MPI_STATUS_IGNORE);
-  ret += MPI_Recv (&(w->M), 1, MPI_INT, dest, tag, comm, MPI_STATUS_IGNORE);
+  ret += MPI_Recv (&(w->two_J), 1, MPI_INT, dest, tag, comm, MPI_STATUS_IGNORE);
+  ret += MPI_Recv (&(w->two_M), 1, MPI_INT, dest, tag, comm, MPI_STATUS_IGNORE);
 
   return ret;
 }
@@ -449,7 +438,7 @@ linear_molecule_tdse_rhs(const molecule_t *molecule,
       for (jlas = 0; jlas < lasers->nlasers; jlas++)
 	{
 	  double f, env2 = lasers->laser[jlas]->get_envelope(lasers->laser[jlas], t);
-	  int J;//, idx1 = -1;
+	  int two_J;//, idx1 = -1;
 
 	  if (env2 < 0.0)
 	    continue;
@@ -460,34 +449,34 @@ linear_molecule_tdse_rhs(const molecule_t *molecule,
 	    (E, lasers->laser[ilas]->get_polzn_vector(lasers->laser[ilas], t),
 	     lasers->laser[jlas]->get_polzn_vector(lasers->laser[jlas], t));
 
-	  for (J = 0; J <= mol->Jmax; J++)
+	  for (two_J = 0; two_J <= mol->two_Jmax; two_J += 2)
 	    {
-	      int Jpmin = J - 2, Jpmax = J + 2, M;
+	      int two_Jpmin = two_J - 4, two_Jpmax = two_J + 4, two_M;
 	      double EJ;
 
-	      if (Jpmin < 0)
-		Jpmin = 0;
+	      if (two_Jpmin < 0)
+		two_Jpmin = 0;
 
-	      if (Jpmax > mol->Jmax)
-		Jpmax = mol->Jmax;
+	      if (two_Jpmax > mol->two_Jmax)
+		two_Jpmax = mol->two_Jmax;
 
-	      EJ = linear_molecule_energy (mol, J);
+	      EJ = linear_molecule_energy (mol, two_J);
 	      
-	      for (M = -J; M <= J; M++)
+	      for (two_M = -two_J; two_M <= two_J; two_M += 2)
 		{
 		  int Jp;
-		  int i1 = JMarray_idx (J, M);
+		  int i1 = JMarray_idx (two_J, two_M);
 		  
-		  for (Jp = Jpmin; Jp <= Jpmax; Jp++)
+		  for (two_Jp = two_Jpmin; two_Jp <= two_Jpmax; two_Jp += 2)
 		    {
-		      int Mp, Mpmin = GSL_MAX (-Jp, M - 2);
-		      int Mpmax = GSL_MIN (Jp, M + 2);
-		      double EJp = linear_molecule_energy (mol, Jp);
+		      int Mp, Mpmin = GSL_MAX (-two_Jp, two_M - 4);
+		      int Mpmax = GSL_MIN (two_Jp, two_M + 4);
+		      double EJp = linear_molecule_energy (mol, two_Jp);
 
-		      for (Mp = Mpmin; Mp <= Mpmax; Mp++)
+		      for (two_Mp = two_Mpmin; two_Mp <= two_Mpmax; two_Mp++)
 			{
-			  int i2 = JMarray_idx (Jp, Mp);
-			  int k, kmin, p = Mp - M;
+			  int i2 = JMarray_idx (two_Jp, two_Mp);
+			  int two_k, two_kmin, two_p = two_Mp - two_M;
 			  //	  double Ep;
 			  gsl_complex Ap, c, eterm, mtxel;
 
@@ -498,17 +487,17 @@ linear_molecule_tdse_rhs(const molecule_t *molecule,
 
 			  GSL_SET_COMPLEX (&mtxel, 0.0, 0.0);
 
-			  if ((J == Jp) && (p == 0))
-			    kmin = 0;
+			  if ((two_J == two_Jp) && (two_p == 0))
+			    two_kmin = 0;
 			  else
-			    kmin = 2;
+			    two_kmin = 4;
 
-			  for (k = kmin; k <= 2; k += 2)
+			  for (two_k = kmin; two_k <= 4; k += 4)
 			    {
-			      gsl_complex Ekp = E->get (E, k, p);
-			      double alphak0 = polarizability_get (mol->alpha, k, 0);
+			      gsl_complex Ekp = E->get (E, two_k / 2, two_p / 2);
+			      double alphak0 = polarizability_get (mol->alpha, two_k / 2, 0);
 			      double a = -alphak0 *
-				dmtxel (J, 0, M, Jp, 0, Mp, k, p, 0);
+				dmtxel (two_J, 0, two_M, two_Jp, 0, two_Mp, two_k, two_p, 0);
 
 			      gsl_complex c = gsl_complex_mul_real (Ekp, a);
 			      
@@ -536,34 +525,34 @@ linear_molecule_tdse_rhs(const molecule_t *molecule,
   return GSL_SUCCESS;
 }
 
-int 
+int
 linear_molecule_check_populations (const molecule_t * molecule, 
 				   const double * coef)
 {
   linear_molecule_t *mol = (linear_molecule_t *) molecule;
   const double *coef_r = coef;
   const double *coef_i = coef + mol->ncoef;
-  int J;
+  int two_J;
 
   /* Check populations in Jmax manifold, and also Jmax - 1 manifold. */
-  for (J = mol->Jmax - 1; J <= mol->Jmax; J++)
+  for (two_J = mol->two_Jmax - 2; two_J <= mol->two_Jmax; two_J += 2)
     {
-      int M;
-      double re, im, pop = 0.0;
+      int two_M;
+      double pop = 0.0;
       
-      for (M = -J; M <= J; M++)
+      for (two_M = -two_J; two_M <= two_J; M += 2)
 	{
 	  int idx = JMarray_idx (J, M);
-	  re = coef_r[idx];
-	  im = coef_i[idx];
+	  double re = coef_r[idx];
+	  double im = coef_i[idx];
 	  pop += (re * re) + (im * im); /* Population in this (J, M) state */
 	}
       /* If total population in this J manifold is greater than
 	 poptol, then it's considered unacceptable. */
       if (pop > mol->poptol)
 	{
-	  fprintf(stderr, "Population greater than poptol in J=%d. Population=%g, poptol=%g\n", 
-		  J, pop, mol->poptol);
+	  fprintf(stderr, "Population greater than poptol in 2J=%d. Population=%g, poptol=%g\n", 
+		  two_J, pop, mol->poptol);
 	  return -1;
 	}
     }
@@ -572,12 +561,12 @@ linear_molecule_check_populations (const molecule_t * molecule,
 }
 
 linear_molecule_t *
-linear_molecule_ctor(const double B, const int Jmax, const double T,
+linear_molecule_ctor(const double B, const int two_Jmax, const double T,
 		     const double oddwt, const double evenwt, 
 		     const double alpha_par, const double alpha_perp, 
 		     const double coefmin, const double poptol)
-/* B is rotational constant in wavenumbers.  Jmax is the maximum value
-   of J to consider.  
+/* B is rotational constant in wavenumbers.  two_Jmax is twice the
+   maximum value of J to consider.
 
    oddwt, evenwt are the statistical weight of odd and even J levels
    respectively.
@@ -595,7 +584,7 @@ linear_molecule_ctor(const double B, const int Jmax, const double T,
 {
   double a_par, a_perp;
   linear_molecule_t * mol;
-  int J;
+  int two_J;
 
   if (MEMORY_ALLOC(mol) < 0)
     {
@@ -626,7 +615,7 @@ linear_molecule_ctor(const double B, const int Jmax, const double T,
 			     linear_molecule_tdse_worker_mpi_recv,
 #endif
 			     linear_molecule_dtor);
-  mol->Jmax = Jmax;
+  mol->two_Jmax = two_Jmax;
   mol->poptol = poptol;
   mol->coefmin = coefmin;
   mol->oddwt = oddwt;
@@ -655,16 +644,17 @@ linear_molecule_ctor(const double B, const int Jmax, const double T,
 
   /* Calculate and store the partition function. */
   mol->partfn = 0.0;
-  for (J = 0; J <= mol->Jmax; J++)
+  for (two_J = 0; two_J <= mol->two_Jmax; J += 2)
     {
-      double dim = 2.0 * J + 1.0;
-      double wt = GSL_IS_ODD (J) ? mol->oddwt : mol->evenwt;
-      double E = linear_molecule_energy(mol, J);
+      double dim = two_J + 1.0;
+      /* FIXME: only works for integer J. */
+      double wt = GSL_IS_ODD (two_J / 2) ? mol->oddwt : mol->evenwt;
+      double E = linear_molecule_energy(mol, two_J);
       mol->partfn += dim * wt * exp (-E / mol->kT);
     }
 
   /* Setup array for storing TDSE job status. */
-  mol->job_status = JMarray_int_ctor(mol->Jmax);
+  mol->job_status = JMarray_int_ctor(mol->two_Jmax);
   if (mol->job_status == NULL)
     {
       fprintf(stderr, "Failed to allocate memory for mol->tdse_status.\n");
@@ -672,12 +662,12 @@ linear_molecule_ctor(const double B, const int Jmax, const double T,
       return NULL;
     }
 
-  for (J = 0; J <= mol->Jmax; J++)
+  for (two_J = 0; two_J <= mol->two_Jmax; two_J += 2)
     {
-      int M;
+      int two_M;
 
-      for (M = -J; M <= J; M++)
-	JMarray_int_set (mol->job_status, J, M, __TODO);
+      for (two_M = -two_J; two_M <= two_J; two_M++)
+	JMarray_int_set (mol->job_status, two_J, two_M, __TODO);
     }
 
   return mol;
@@ -689,7 +679,7 @@ linear_molecule_cfg_parse_ctor(const config_setting_t *cfg)
   linear_molecule_t * mol;
   double B, alpha_par, alpha_perp, T, coefmin, poptol;
   double oddwt, evenwt;
-  int Jmax;
+  int two_Jmax;
 
   if (!(config_setting_lookup_float (cfg, "B", &B) &&
 	config_setting_lookup_float (cfg, "alpha_par", &alpha_par) &&
@@ -699,14 +689,14 @@ linear_molecule_cfg_parse_ctor(const config_setting_t *cfg)
 	config_setting_lookup_float (cfg, "evenwt", &evenwt) &&
 	config_setting_lookup_float (cfg, "coefmin", &coefmin) &&
 	config_setting_lookup_float (cfg, "poptol", &poptol) &&
-	config_setting_lookup_int (cfg, "Jmax", &Jmax) 
+	config_setting_lookup_int (cfg, "two_Jmax", &two_Jmax) 
 	))
     {
       fprintf(stderr, "Incomplete linear molecule configuration.\n");
       return NULL;
     }
 
-  mol = linear_molecule_ctor (B, Jmax, T, oddwt, evenwt, alpha_par, alpha_perp, 
+  mol = linear_molecule_ctor (B, two_Jmax, T, oddwt, evenwt, alpha_par, alpha_perp, 
 			      coefmin, poptol);
   if (mol == NULL)
     fprintf (stderr, "Failed to create linear_molecule structure after parsing config.\n");
