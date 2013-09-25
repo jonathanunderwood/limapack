@@ -34,7 +34,7 @@ typedef struct _asymrot_molecule
   double coefmin;
   double poptol;
   double eigvecmin;
-  int Jmax;
+  int two_Jmax;
   int ncoef;
   asymrot_eigsys_t *eigsys;
   polarizability_t *alpha;
@@ -44,7 +44,7 @@ typedef struct _asymrot_molecule
 typedef struct _asymrot_molecule_tdse_worker
 {
   molecule_tdse_worker_t parent;
-  int J, M, n;
+  int two_J, two_M, two_n;
 } asymrot_molecule_tdse_worker_t;
 
 typedef struct _asymrot_molecule_expval
@@ -90,19 +90,19 @@ asymrot_molecule_expval_dtor (const molecule_t * molecule,
 
 
 static inline double
-asymrot_molecule_energy (const asymrot_molecule_t * mol, const int J,
-			 const int n)
+asymrot_molecule_energy (const asymrot_molecule_t * mol, const int two_J,
+			 const int two_n)
 {
-  return asymrot_eigsys_eigval_get (mol->eigsys, J, n);
+  return asymrot_eigsys_eigval_get (mol->eigsys, two_J, two_n);
 }
 
 static double
 asymrot_molecule_boltzmann_statwt (const asymrot_molecule_t * mol,
-				   const int J, const int n)
+				   const int two_J, const int two_n)
 /* Returns the statistical weight of a single (J, n, M) state in a
    Boltzmann distribution, hence no (2J+1) degeneracy pre-factor. */
 {
-  double E = asymrot_molecule_energy (mol, J, n);
+  double E = asymrot_molecule_energy (mol, two_J, two_n);
 
   return exp (-E / mol->kT) / mol->partfn;
 }
@@ -136,7 +136,7 @@ asymrot_molecule_expval_calc (const molecule_t * molecule, const double *coef,
   const double *coef_r = coef;
   const double *coef_i = coef + mol->ncoef;
   asymrot_eigsys_t *eigsys = mol->eigsys;
-  int J, Jmax = mol->Jmax;
+  int two_J, two_Jmax = mol->two_Jmax;
   dcmsq_mtxel_t *dcmsq_mtxel = dcmsq_mtxel_ctor ();
 
   if (dcmsq_mtxel == NULL)
@@ -145,27 +145,27 @@ asymrot_molecule_expval_calc (const molecule_t * molecule, const double *coef,
   /* Initialize all expectation values to zero. */
   asymrot_molecule_expval_zero (mol, expval);
 
-  for (J = 0; J <= Jmax; J++)
+  for (two_J = 0; two_J <= two_Jmax; two_J += 2)
     {
-      int Jpmin = J - 2;
-      int Jpmax;
-      int M;
+      int two_Jpmin = two_J - 4;
+      int two_Jpmax;
+      int two_M;
 
-      if (Jpmin < 0)
-	Jpmin = 0;
+      if (two_Jpmin < 0)
+	two_Jpmin = 0;
 
-      Jpmax = J + 2;
-      if (Jpmax > Jmax)
-	Jpmax = Jmax;
+      two_Jpmax = J + 4;
+      if (two_Jpmax > two_Jmax)
+	two_Jpmax = two_Jmax;
 
-      for (M = -J; M <= J; M++)
+      for (two_M = -two_J; two_M <= two_J; two_M += 2)
 	{
-	  int n;
+	  int two_n;
 
-	  for (n = -J; n <= J; n++)
+	  for (two_n = -two_J; two_n <= two_J; two_n += 2)
 	    {
-	      double E = asymrot_eigsys_eigval_get (eigsys, J, n);
-	      int i1 = JKMarray_idx (J, n, M);
+	      double E = asymrot_eigsys_eigval_get (eigsys, two_J, two_n);
+	      int i1 = JKMarray_idx (two_J, two_n, two_M);
 	      int Jp;
 	      gsl_complex A;
 
@@ -176,25 +176,26 @@ asymrot_molecule_expval_calc (const molecule_t * molecule, const double *coef,
 
 	      A = gsl_complex_conjugate (A);
 
-	      for (Jp = Jpmin; Jp <= Jpmax; Jp++)
+	      for (two_Jp = two_Jpmin; two_Jp <= two_Jpmax; two_Jp += 2)
 		{
-		  int p;
+		  int two_p;
 
-		  for (p = -2; p <= 2; p++)
+		  for (two_p = -2; two_p <= 2; two_p += 2)
 		    {
-		      int Mp = M + p;
-		      int np;
+		      int two_Mp, two_np;
 
-		      if (abs (Mp) > Jp)
+		      if (abs (two_Mp) > two_Jp)
 			continue;
+		      
+		      two_Mp = two_M + two_p;
 
-		      for (np = -Jp; np <= Jp; np++)
+		      for (two_np = -two_Jp; two_np <= two_Jp; two_np += 2)
 			{
 			  double Ep =
-			    asymrot_eigsys_eigval_get (eigsys, Jp, np);
-			  int i2 = JKMarray_idx (Jp, np, Mp);
+			    asymrot_eigsys_eigval_get (eigsys, two_Jp, two_np);
+			  int i2 = JKMarray_idx (two_Jp, two_np, two_Mp);
 			  gsl_complex Ap, c1, c2, c3;
-			  int K;
+			  int two_K;
 
 			  GSL_SET_COMPLEX (&Ap, coef_r[i2], coef_i[i2]);
 
@@ -205,11 +206,11 @@ asymrot_molecule_expval_calc (const molecule_t * molecule, const double *coef,
 			  c2 = gsl_complex_polar (1.0, (E - Ep) * t);
 			  c3 = gsl_complex_mul (c1, c2);
 
-			  for (K = -J; K <= J; K++)
+			  for (two_K = -two_J; two_K <= two_J; two_K += 2)
 			    {
 			      double a =
-				asymrot_eigsys_eigvec_coef_get (eigsys, J, n,
-								K);
+				asymrot_eigsys_eigvec_coef_get 
+				(eigsys, two_J, two_n, two_K);
 			      gsl_complex c4;
 			      int q;
 
@@ -218,19 +219,18 @@ asymrot_molecule_expval_calc (const molecule_t * molecule, const double *coef,
 
 			      c4 = gsl_complex_mul_real (c3, a);
 
-			      for (q = -2; q <= 2; q += 2)
+			      for (two_q = -4; two_q <= 4; two_q += 4)
 				{
-				  int Kp = K + q;
+				  int two_Kp = two_K + two_q;
 				  double ap;
 				  gsl_complex c5;
 
-				  if (abs (Kp) > Jp)
+				  if (abs (two_Kp) > two_Jp)
 				    continue;
 
 				  ap =
-				    asymrot_eigsys_eigvec_coef_get (eigsys,
-								    Jp, np,
-								    Kp);
+				    asymrot_eigsys_eigvec_coef_get 
+				    (eigsys, two_Jp, two_np, two_Kp);
 
 				  if (fabs (ap) < mol->eigvecmin)
 				    continue;
@@ -238,8 +238,9 @@ asymrot_molecule_expval_calc (const molecule_t * molecule, const double *coef,
 				  c5 = gsl_complex_mul_real (c4, ap);
 
 				  dcmsq_mtxel_calc (dcmsq_mtxel,
-						    J, K, M, Jp, Kp, Mp);
-
+						    two_J, two_K, two_M, 
+						    two_Jp, two_Kp, two_Mp);
+				  
 				  dcmsq_expval_add_mtxel_weighted_complex
 				    (expval->dcmsq, dcmsq_mtxel, c5);
 				}
@@ -310,28 +311,29 @@ asymrot_molecule_get_tdse_job (molecule_t * molecule,
   asymrot_molecule_t *mol = (asymrot_molecule_t *) molecule;
   asymrot_molecule_tdse_worker_t *w =
     (asymrot_molecule_tdse_worker_t *) worker;
-  int J, M, n;
+  int two_J, two_M, two_n;
 
-  for (J = 0; J <= mol->Jmax; J++)
-    for (n = -J; n <= J; n++)
-      for (M = -J; M <= J; M++)
+  for (two_J = 0; two_J <= mol->two_Jmax; two_J += 2)
+    for (two_n = -two_J; two_n <= two_J; two_n += 2)
+      for (two_M = -two_J; two_M <= two_J; two_M += 2)
 	{
-	  int status = JKMarray_int_get (mol->job_status, J, n, M);
+	  int status = JKMarray_int_get (mol->job_status, two_J, two_n, two_M);
 	  if (status == __TODO)
 	    {
-	      double wt = asymrot_molecule_boltzmann_statwt (mol, J, n);
+	      double wt = asymrot_molecule_boltzmann_statwt (mol, two_J, two_n);
 
 	      if (wt < mol->poptol)	/* Population in this state negligible */
-		JKMarray_int_set (mol->job_status, J, n, M, __DONE);
+		JKMarray_int_set (mol->job_status, two_J, two_n, two_M, __DONE);
 	      else
 		{
-		  JKMarray_int_set (mol->job_status, J, n, M, __STARTED);
-		  w->J = J;
-		  w->n = n;
-		  w->M = M;
+		  JKMarray_int_set (mol->job_status, two_J, two_n, two_M, 
+				    __STARTED);
+		  w->two_J = two_J;
+		  w->two_n = two_n;
+		  w->two_M = two_M;
 		  snprintf (w->parent.description,
 			    MOLECULE_TDSE_WORKER_DESCRIPTION_LENGTH,
-			    "J: %d n: %d M: %d", J, n, M);
+			    "2J: %d 2n: %d 2M: %d", two_J, two_n, two_M);
 		  return 0;
 		}
 	    }
@@ -349,7 +351,7 @@ asymrot_molecule_set_tdse_job_done (molecule_t * molecule,
   asymrot_molecule_tdse_worker_t *w =
     (asymrot_molecule_tdse_worker_t *) worker;
 
-  JKMarray_int_set (m->job_status, w->J, w->n, w->M, __DONE);
+  JKMarray_int_set (m->job_status, w->two_J, w->two_n, w->two_M, __DONE);
 }
 
 static void
@@ -366,8 +368,9 @@ asymrot_molecule_get_tdse_job_coef (const molecule_t * molecule,
   for (i = 0; i < 2 * molecule->get_ncoef (molecule); i++)
     coef[i] = 0.0;
 
-  /* And now set the real part of the (J, n, M) coefficient to 1. */
-  coef[JKMarray_idx (w->J, w->n, w->M)] = 1.0;	/* Im part is 0.0, set above. */
+  /* And now set the real part of the (J, n, M) coefficient to
+     1. Imaginary part is already set to zero above. */
+  coef[JKMarray_idx (w->two_J, w->two_n, w->two_M)] = 1.0;
 
   return;
 }
@@ -380,7 +383,7 @@ asymrot_molecule_get_tdse_job_weight (const molecule_t * molecule,
   asymrot_molecule_tdse_worker_t *w =
     (asymrot_molecule_tdse_worker_t *) worker;
 
-  return asymrot_molecule_boltzmann_statwt (mol, w->J, w->n);
+  return asymrot_molecule_boltzmann_statwt (mol, w->two_J, w->two_n);
 }
 
 molecule_tdse_worker_t *
@@ -421,9 +424,9 @@ asymrot_molecule_tdse_worker_mpi_send (const molecule_t * self,
   ret = MPI_Send ((void *) &(w->parent.description),
 		  MOLECULE_TDSE_WORKER_DESCRIPTION_LENGTH,
 		  MPI_CHAR, dest, tag, comm);
-  ret += MPI_Send ((void *) &(w->J), 1, MPI_INT, dest, tag, comm);
-  ret += MPI_Send ((void *) &(w->n), 1, MPI_INT, dest, tag, comm);
-  ret += MPI_Send ((void *) &(w->M), 1, MPI_INT, dest, tag, comm);
+  ret += MPI_Send ((void *) &(w->two_J), 1, MPI_INT, dest, tag, comm);
+  ret += MPI_Send ((void *) &(w->two_n), 1, MPI_INT, dest, tag, comm);
+  ret += MPI_Send ((void *) &(w->two_M), 1, MPI_INT, dest, tag, comm);
 
   return ret;
 }
@@ -440,9 +443,9 @@ asymrot_molecule_tdse_worker_mpi_recv (const molecule_t * self,
   ret = MPI_Recv ((void *) &(w->parent.description),
 		  MOLECULE_TDSE_WORKER_DESCRIPTION_LENGTH,
 		  MPI_CHAR, dest, tag, comm, MPI_STATUS_IGNORE);
-  ret += MPI_Recv (&(w->J), 1, MPI_INT, dest, tag, comm, MPI_STATUS_IGNORE);
-  ret += MPI_Recv (&(w->n), 1, MPI_INT, dest, tag, comm, MPI_STATUS_IGNORE);
-  ret += MPI_Recv (&(w->M), 1, MPI_INT, dest, tag, comm, MPI_STATUS_IGNORE);
+  ret += MPI_Recv (&(w->two_J), 1, MPI_INT, dest, tag, comm, MPI_STATUS_IGNORE);
+  ret += MPI_Recv (&(w->two_n), 1, MPI_INT, dest, tag, comm, MPI_STATUS_IGNORE);
+  ret += MPI_Recv (&(w->two_M), 1, MPI_INT, dest, tag, comm, MPI_STATUS_IGNORE);
 
   return ret;
 }
@@ -464,7 +467,7 @@ asymrot_molecule_tdse_rhs (const molecule_t * molecule,
   asymrot_molecule_t *mol = (asymrot_molecule_t *) molecule;
   const double *coef_real = coef, *coef_imag = coef + mol->ncoef;
   double *deriv_real = deriv, *deriv_imag = deriv + mol->ncoef;
-  int Jmax = mol->Jmax;
+  int two_Jmax = mol->two_Jmax;
   int ilas;
   asymrot_eigsys_t *eigsys = mol->eigsys;
   laser_polzn_tensor_t *E = laser_polzn_tensor_ctor ();
@@ -497,45 +500,46 @@ asymrot_molecule_tdse_rhs (const molecule_t * molecule,
 	     lasers->laser[ilas]->get_polzn_vector (lasers->laser[ilas], t),
 	     lasers->laser[jlas]->get_polzn_vector (lasers->laser[jlas], t));
 
-	  for (J = 0; J <= Jmax; J++)
+	  for (two_J = 0; two_J <= two_Jmax; two_J += 2)
 	    {
-	      int Jpmin = J - 2;
-	      int Jpmax, M;
+	      int two_Jpmin = two_J - 4;
+	      int two_Jpmax, two_M;
 
-	      if (Jpmin < 0)
-		Jpmin = 0;
+	      if (two_Jpmin < 0)
+		two_Jpmin = 0;
 	      
-	      Jpmax = J + 2;
-	      if (Jpmax > Jmax)
-		Jpmax = Jmax;
+	      two_Jpmax = two_J + 4;
+	      if (two_Jpmax > two_Jmax)
+		two_Jpmax = two_Jmax;
 
-	      for (M = -J; M <= J; M++)
+	      for (two_M = -two_J; two_M <= two_J; two_M += 2)
 		{
-		  int n;
+		  int two_n;
 
-		  for (n = -J; n <= J; n++)
+		  for (two_n = -two_J; two_n <= two_J; two_n += 2)
 		    {
-		      int Jp;
-		      int i1 = JKMarray_idx (J, n, M);
-		      double E_Jn = asymrot_eigsys_eigval_get (eigsys, J, n);
-
-		      for (Jp = Jpmin; Jp <= Jpmax; Jp++)
+		      int two_Jp;
+		      int i1 = JKMarray_idx (two_J, two_n, two_M);
+		      double E_Jn = 
+			asymrot_eigsys_eigval_get (eigsys, two_J, two_n);
+		      
+		      for (two_Jp = two_Jpmin; two_Jp <= two_Jpmax; Jp += 2)
 			{
-			  int Mp, Mpmin = GSL_MAX (-Jp, M - 2);
-			  int Mpmax = GSL_MIN (Jp, M + 2);
-			  int npmin = -Jp;
-			  int npmax = Jp;
+			  int two_Mp, two_Mpmin = GSL_MAX (-two_Jp, two_M - 4);
+			  int two_Mpmax = GSL_MIN (two_Jp, two_M + 4);
+			  int two_npmin = -two_Jp;
+			  int two_npmax = two_Jp;
 
-			  for (Mp = Mpmin; Mp <= Mpmax; Mp++)
+			  for (two_Mp = two_Mpmin; two_Mp <= two_Mpmax; two_Mp += 2)
 			    {
-			      int np;
+			      int two_np;
 
-			      for (np = npmin; np <= npmax; np++)
+			      for (two_np = two_npmin; two_np <= two_npmax; two_np += 2)
 				{
-				  int i2 = JKMarray_idx (Jp, np, Mp);
+				  int i2 = JKMarray_idx (two_Jp, two_np, two_Mp);
 				  double E_Jpnp;
 				  gsl_complex Ap, c1, eterm;
-				  int k, kmin, p = Mp - M;
+				  int two_k, two_kmin, two_p = two_Mp - two_M;
 
 				  GSL_SET_COMPLEX
 				    (&Ap, coef_real[i2], coef_imag[i2]);
@@ -544,8 +548,8 @@ asymrot_molecule_tdse_rhs (const molecule_t * molecule,
 				    continue;
 
 				  E_Jpnp =
-				    asymrot_eigsys_eigval_get (eigsys, Jp,
-							       np);
+				    asymrot_eigsys_eigval_get (eigsys, two_Jp,
+							       two_np);
 
 				  eterm =
 				    gsl_complex_polar (1.0,
@@ -553,52 +557,53 @@ asymrot_molecule_tdse_rhs (const molecule_t * molecule,
 
 				  c1 = gsl_complex_mul (Ap, eterm);
 
-				  if ((J == Jp) && (p == 0))
-				    kmin = 0;
+				  if ((two_J == two_Jp) && (two_p == 0))
+				    two_kmin = 0;
 				  else
-				    kmin = 2;
+				    two_kmin = 4;
 
-				  for (k = kmin; k <= 2; k += 2)
+				  for (two_k = two_kmin; two_k <= 4; k += 4)
 				    {
-				      int K;
-				      gsl_complex Ekp = E->get (E, k, p);
+				      int two_K;
+				      gsl_complex Ekp = E->get (E, two_k / 2, two_p / 2);
 				      gsl_complex c2 =
 					gsl_complex_mul (c1, Ekp);
 
-				      for (K = -J; K <= J; K++)
+				      for (two_K = -two_J; two_K <= two_J; two_K += 2)
 					{
 					  double a =
 					    asymrot_eigsys_eigvec_coef_get
-					    (eigsys, J, n, K);
-					  int q;
+					    (eigsys, two_J, two_n, two_K);
+					  int two_q;
 
 					  if (fabs (a) < mol->eigvecmin)
 					    continue;
 
-					  for (q = -k; q <= k; q += 2)
+					  for (two_q = -two_k; two_q <= two_k; two_q += 4)
 					    {
-					      int Kp = K + q;
+					      int two_Kp = two_K + two_q;
 					      double b, ap, alpha;
 					      gsl_complex c3;
 
-					      if (abs (Kp) > Jp)
+					      if (abs (two_Kp) > two_Jp)
 						continue;
 
 					      ap =
 						asymrot_eigsys_eigvec_coef_get
-						(eigsys, Jp, np, Kp);
+						(eigsys, two_Jp, two_np, two_Kp);
 
 					      if (fabs (ap) < mol->eigvecmin)
 						continue;
 
 					      alpha =
 						polarizability_get (mol->
-								    alpha, k,
-								    -q);
+								    alpha, two_k / 2,
+								    -two_q / 2);
 
 					      b = -a * ap * alpha * f *
-						dmtxel (J, K, M, Jp, Kp, Mp,
-							k, p, q);
+						dmtxel (two_J, two_K, two_M, 
+							two_Jp, two_Kp, two_Mp,
+							two_k, two_p, two_q);
 
 					      c3 =
 						gsl_complex_mul_real (c2, b);
@@ -631,36 +636,36 @@ asymrot_molecule_check_populations (const molecule_t * molecule,
   asymrot_molecule_t *mol = (asymrot_molecule_t *) molecule;
   const double *coef_r = coef;
   const double *coef_i = coef + mol->ncoef;
-  int J;
+  int two_J;
 
-  /* Check populations in Jmax manifold, and also Jmax - 1
+  /* Check populations in two_Jmax manifold, and also two_Jmax - 1
      manifold. This is actually crude, as it's probable that the
      highest energy state in the field at any given point may not
-     correspond tto those of Jmax - n dependence is unclear. Something
+     correspond tto those of two_Jmax - n dependence is unclear. Something
      to fix for the future. */
-  for (J = mol->Jmax - 1; J <= mol->Jmax; J++)
+  for (two_J = mol->two_Jmax - 2; two_J <= mol->two_Jmax; two_J += 2)
     {
-      int n;
+      int two_n;
 
-      for (n = -J; n <= J; n++)
+      for (two_n = -two_J; two_n <= two_J; two_n += 2)
 	{
-	  int M;
+	  int two_M;
 	  double re, im, pop = 0.0;
 
-	  for (M = -J; M <= J; M++)
+	  for (two_M = -two_J; two_M <= two_J; two_M += 2)
 	    {
-	      int idx = JKMarray_idx (J, n, M);
+	      int idx = JKMarray_idx (two_J, two_n, two_M);
 	      re = coef_r[idx];
 	      im = coef_i[idx];
-	      pop += (re * re) + (im * im);	/* Population in this (J, M) state */
+	      pop += (re * re) + (im * im);	/* Population in this (J, n, M) state */
 	    }
 	  /* If total population in this J manifold is greater than
 	     poptol, then it's considered unacceptable. */
 	  if (pop > mol->poptol)
 	    {
 	      fprintf (stderr,
-		       "Population greater than poptol in J=%d. Population=%g, poptol=%g\n",
-		       J, pop, mol->poptol);
+		       "Population greater than poptol in 2J=%d. Population=%g, poptol=%g\n",
+		       two_J, pop, mol->poptol);
 	      return -1;
 	    }
 	}
@@ -671,14 +676,14 @@ asymrot_molecule_check_populations (const molecule_t * molecule,
 
 asymrot_molecule_t *
 asymrot_molecule_ctor (const double Bx, const double By, const double Bz,
-		       const int Jmax, const double T,
+		       const int two_Jmax, const double T,
 		       const double alpha_xx, const double alpha_yy,
 		       const double alpha_zz, const double coefmin,
 		       const double eigvecmin, const double poptol)
 /* Bx, By, Bz are rotational constants in wavenumbers associated with
    molecular axes x, y, z.
    
-   Jmax is the maximum value of J to consider.
+   two_Jmax is twice the maximum value of J to consider.
 
    alpha_xx, alpha_yy, and alpha_zz are the molecular frame components
    of polarizability in Angstrom cubed.
@@ -689,14 +694,14 @@ asymrot_molecule_ctor (const double Bx, const double By, const double Bz,
    eigvecmin is the minimum value of a symmetric top basis function
    coefficient which we bother to consider during propagation.
 
-   poptol is the maximum allowed population in the Jmax and Jmax-1
+   poptol is the maximum allowed population in the two_Jmax and two_Jmax-1
    manifolds during propagation. If the population in these manifolds
    exceeds poptol the calculation will bail out.
 */
 {
   double a_xx, a_yy, a_zz;
   asymrot_molecule_t *mol;
-  int J;
+  int two_J;
 
   if (MEMORY_ALLOC (mol) < 0)
     {
@@ -727,7 +732,7 @@ asymrot_molecule_ctor (const double Bx, const double By, const double Bz,
 			      asymrot_molecule_tdse_worker_mpi_recv,
 #endif
 			      asymrot_molecule_dtor);
-  mol->Jmax = Jmax;
+  mol->two_Jmax = two_Jmax;
   mol->poptol = poptol;
   mol->eigvecmin = eigvecmin;
   mol->coefmin = coefmin;
@@ -755,10 +760,10 @@ asymrot_molecule_ctor (const double Bx, const double By, const double Bz,
     }
 
   /* Number of complex coefficients. */
-  mol->ncoef = JKMarray_dim (mol->Jmax);
+  mol->ncoef = JKMarray_dim (mol->two_Jmax);
 
   /* Calculate eigenvalues and eigevectors. */
-  mol->eigsys = asymrot_eigsys_ctor (mol->Jmax, mol->Bx, mol->By, mol->Bz);
+  mol->eigsys = asymrot_eigsys_ctor (mol->two_Jmax, mol->Bx, mol->By, mol->Bz);
   if (mol->eigsys == NULL)
     {
       fprintf (stderr, "%s %d: failed to calculate and store eigen system.\n",
@@ -769,20 +774,20 @@ asymrot_molecule_ctor (const double Bx, const double By, const double Bz,
 
   /* Calculate and store the partition function. */
   mol->partfn = 0.0;
-  for (J = 0; J <= mol->Jmax; J++)
+  for (two_J = 0; two_J <= mol->two_Jmax; J += 2)
     {
-      int n;
+      int two_n;
 
-      for (n = -J; n <= J; n++)
+      for (two_n = -two_J; two_n <= two_J; two_n += 2)
 	{
-	  double dim = 2.0 * J + 1.0;
-	  double E = asymrot_eigsys_eigval_get (mol->eigsys, J, n);
+	  int dim = two_J + 1;
+	  double E = asymrot_eigsys_eigval_get (mol->eigsys, two_J, two_n);
 	  mol->partfn += dim * exp (-E / mol->kT);
 	}
     }
 
   /* Setup array for storing TDSE job status. */
-  mol->job_status = JKMarray_int_ctor (mol->Jmax);
+  mol->job_status = JKMarray_int_ctor (mol->two_Jmax);
   if (mol->job_status == NULL)
     {
       fprintf (stderr,
@@ -792,16 +797,16 @@ asymrot_molecule_ctor (const double Bx, const double By, const double Bz,
       return NULL;
     }
 
-  for (J = 0; J <= mol->Jmax; J++)
+  for J(two_J = 0; two_J <= mol->two_Jmax; two_J += 2)
     {
-      int n;
+      int two_n;
 
-      for (n = -J; n <= J; n++)
+      for (two_n = -two_J; two_n <= two_J; two_n += 2)
 	{
-	  int M;
+	  int two_M;
 
-	  for (M = -J; M <= J; M++)
-	    JKMarray_int_set (mol->job_status, J, n, M, __TODO);
+	  for (two_M = -two_J; two_M <= two_J; two_M += 2)
+	    JKMarray_int_set (mol->job_status, two_J, two_n, two_M, __TODO);
 	}
     }
 
@@ -815,7 +820,7 @@ asymrot_molecule_cfg_parse_ctor (const config_setting_t * cfg)
   double Bx, By, Bz;
   double alpha_xx, alpha_yy, alpha_zz;
   double T, coefmin, poptol, eigvecmin;
-  int Jmax;
+  int two_Jmax;
 
   if (!(config_setting_lookup_float (cfg, "Bx", &Bx) &&
 	config_setting_lookup_float (cfg, "By", &By) &&
@@ -827,14 +832,14 @@ asymrot_molecule_cfg_parse_ctor (const config_setting_t * cfg)
 	config_setting_lookup_float (cfg, "coefmin", &coefmin) &&
 	config_setting_lookup_float (cfg, "poptol", &poptol) &&
 	config_setting_lookup_float (cfg, "eigvecmin", &eigvecmin) &&
-	config_setting_lookup_int (cfg, "Jmax", &Jmax)))
+	config_setting_lookup_int (cfg, "two_Jmax", &two_Jmax)))
     {
       fprintf (stderr, "%s %d: incomplete asymrot molecule configuration.\n",
 	       __func__, __LINE__);
       return NULL;
     }
 
-  mol = asymrot_molecule_ctor (Bx, By, Bz, Jmax, T, alpha_xx, alpha_yy,
+  mol = asymrot_molecule_ctor (Bx, By, Bz, two_Jmax, T, alpha_xx, alpha_yy,
 			       alpha_zz, coefmin, eigvecmin, poptol);
 
   if (mol == NULL)
