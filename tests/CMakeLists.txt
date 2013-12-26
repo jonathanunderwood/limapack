@@ -25,10 +25,24 @@ include_directories ("${PROJECT_SOURCE_DIR}/src")
 # add_test(NAME test_ode
 #   COMMAND test_ode)
 
-add_executable (test_dcmsq 
-  test_dcmsq.c
-  $<TARGET_OBJECTS:limalib>
-)
-target_link_libraries(test_dcmsq ${LIBCONFIG_LIBRARIES} ${HDF5_LIBRARIES} gsl m)
-add_test(NAME test_dcsmq
-  COMMAND test_dcmsq)
+# add_executable (test_dcmsq 
+#   test_dcmsq.c
+#   $<TARGET_OBJECTS:limalib>
+# )
+# target_link_libraries(test_dcmsq ${LIBCONFIG_LIBRARIES} ${HDF5_LIBRARIES} gsl m)
+# add_test(NAME test_dcsmq
+#   COMMAND test_dcmsq)
+
+add_executable (test_jmarray 
+  test_jmarray.c
+  ../src/memory.c)
+
+add_test(NAME test_jmarray
+  COMMAND test_jmarray)
+
+add_executable (test_jkmarray 
+  test_jkmarray.c
+  ../src/memory.c)
+
+add_test(NAME test_jkmarray
+  COMMAND test_jkmarray)

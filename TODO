@@ -4,10 +4,19 @@ o Convert all macros for converting to/from atomic units to inline functions
 
 o Run indent over all files to clean up formatting
 
-o Sort out what functions would be usefully exported and build a shared library
+o Sort out what functions would be usefully exported and build a
+  shared library and Python bindings.
+
+o Perhaps the MPI/pthreads handling and job control should all be done
+  at the Python layer such that the C library is simplified.
 
 o Be more careful about checking that populations aren't starting to
   overflow the upper states. For example, in the asymrot case we check
   the population levels in the Jmax and Jmax-1 manifolds, but in the
   field it may be that lower J levels are higher in energy - the n
   dependence is not clear. See asymrot_molecule_check_populations function.
+
+o Presently there's no locking around the functions which get tdse
+  jobs, and set tdse jobs as done. This could be a problem if more
+  than a single process is marshalling jobs. Add a mutex around the
+  related structures.
